@@ -1,11 +1,319 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Command Center</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#2563eb" />
+<title>Command Center</title>
+<link rel="manifest" href="./manifest.json" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --text: #1a1d23;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+    --danger: #dc2626;
+    --success: #16a34a;
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a;
+    --surface: #1e2128;
+    --text: #f1f2f4;
+    --text-muted: #9ca3af;
+    --border: #2c313a;
+    --accent: #3b82f6;
+    --danger: #ef4444;
+    --success: #22c55e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Be Vietnam Pro', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px calc(14px + env(safe-area-inset-top)) 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  #theme-toggle {
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  main { padding: 16px; max-width: 640px; margin: 0 auto; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .card h2 { font-size: 14px; margin: 0 0 10px 0; color: var(--text-muted); font-weight: 600; }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .stat { text-align: center; padding: 10px 4px; }
+  .stat .value { font-size: 22px; font-weight: 700; }
+  .stat .label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .delta-up { color: var(--success); }
+  .delta-down { color: var(--danger); }
+  .row-list { list-style: none; margin: 0; padding: 0; }
+  .row-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .row-list li:last-child { border-bottom: none; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-danger { background: rgba(220,38,38,0.12); color: var(--danger); }
+  .badge-muted { background: var(--bg); color: var(--text-muted); }
+  .placeholder { color: var(--text-muted); font-size: 14px; text-align: center; padding: 40px 0; }
+  .loading, .error { text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 14px; }
+  .error { color: var(--danger); }
+  nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: 10;
+  }
+  nav button {
+    flex: 1;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 10px 4px 8px 4px;
+    cursor: pointer;
+  }
+  nav button.active { color: var(--accent); font-weight: 600; }
+</style>
 </head>
 <body>
-  <!-- TODO: khung PWA 4 tab (Genkii / Tài sản / Thương hiệu cá nhân / Nghi thức) -->
+
+<header>
+  <h1 id="tab-title">Genkii</h1>
+  <button id="theme-toggle" type="button">Auto</button>
+</header>
+
+<main>
+  <section class="tab-panel active" id="panel-a" data-title="Genkii">
+    <div id="tab-a-content" class="loading">Đang tải...</div>
+  </section>
+
+  <section class="tab-panel" id="panel-b" data-title="Tài sản">
+    <div class="placeholder">Tab Tài sản — sắp triển khai (WIP=1, dự án Quỹ B)</div>
+  </section>
+
+  <section class="tab-panel" id="panel-c" data-title="Thương hiệu cá nhân">
+    <div class="placeholder">Tab Thương hiệu cá nhân — sắp triển khai (video/tuần, streak)</div>
+  </section>
+
+  <section class="tab-panel" id="panel-d" data-title="Nghi thức">
+    <div class="placeholder">Tab Nghi thức — sắp triển khai (#tuanmoi / #dongtuan)</div>
+  </section>
+</main>
+
+<nav>
+  <button type="button" class="active" data-tab="a">Genkii</button>
+  <button type="button" data-tab="b">Tài sản</button>
+  <button type="button" data-tab="c">Thương hiệu</button>
+  <button type="button" data-tab="d">Nghi thức</button>
+</nav>
+
+<script>
+  // ── Cấu hình ──────────────────────────────────────────────
+  const CONFIG = {
+    apiUrl: 'https://script.google.com/macros/s/AKfycbxIRzkSHXxK9YLTF7SajBU_fZNUS5IWUtYQAazeYsX2ofJwX5SKb7SmNraZ3WSigE3Jfw/exec',
+    token: 'awMOz1E1YZC8ZCG3hlecG1VZ'
+  };
+
+  // ── Theme sáng/tối/auto (06–18h = sáng) ──────────────────
+  const THEME_KEY = 'cc_theme';
+  function resolveTheme(pref) {
+    if (pref === 'light' || pref === 'dark') return pref;
+    const hour = new Date().getHours();
+    return hour >= 6 && hour < 18 ? 'light' : 'dark';
+  }
+  function applyTheme() {
+    const pref = localStorage.getItem(THEME_KEY) || 'auto';
+    document.documentElement.setAttribute('data-theme', resolveTheme(pref));
+    document.getElementById('theme-toggle').textContent =
+      pref === 'auto' ? 'Auto' : pref === 'light' ? 'Sáng' : 'Tối';
+  }
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const order = ['auto', 'light', 'dark'];
+    const current = localStorage.getItem(THEME_KEY) || 'auto';
+    const next = order[(order.indexOf(current) + 1) % order.length];
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme();
+  });
+  applyTheme();
+
+  // ── Điều hướng tab ────────────────────────────────────────
+  const navButtons = document.querySelectorAll('nav button');
+  const panels = { a: 'panel-a', b: 'panel-b', c: 'panel-c', d: 'panel-d' };
+  navButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      navButtons.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      Object.values(panels).forEach((id) => document.getElementById(id).classList.remove('active'));
+      const panel = document.getElementById(panels[btn.dataset.tab]);
+      panel.classList.add('active');
+      document.getElementById('tab-title').textContent = panel.dataset.title;
+    });
+  });
+
+  // ── JSONP tới Command Center backend ────────────────────
+  function jsonp(action, params) {
+    return new Promise((resolve, reject) => {
+      const cbName = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+      const query = new URLSearchParams({ ...params, action, token: CONFIG.token, callback: cbName });
+      const script = document.createElement('script');
+      const timeout = setTimeout(() => { cleanup(); reject(new Error('Hết thời gian chờ')); }, 15000);
+      function cleanup() {
+        clearTimeout(timeout);
+        delete window[cbName];
+        script.remove();
+      }
+      window[cbName] = (data) => { cleanup(); resolve(data); };
+      script.onerror = () => { cleanup(); reject(new Error('Lỗi tải dữ liệu')); };
+      script.src = `${CONFIG.apiUrl}?${query.toString()}`;
+      document.body.appendChild(script);
+    });
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  // ── Tab A — Genkii ───────────────────────────────────────
+  function renderTabA(data) {
+    const t = data.today || {};
+    const deltaClass = (t.delta || 0) >= 0 ? 'delta-up' : 'delta-down';
+    const deltaSign = (t.delta || 0) >= 0 ? '+' : '';
+
+    const funnelHtml = (data.funnel || [])
+      .map((f) => `<li><span>${escapeHtml(f.stage)}</span><span>${f.count}</span></li>`)
+      .join('');
+
+    const sourcesHtml = ((data.sources && data.sources.items) || [])
+      .map((s) => `<li><span>${escapeHtml(s.name)}</span><span>${s.count}</span></li>`)
+      .join('');
+
+    const salesHtml = (data.sales || [])
+      .map((s) => `<li><span>${escapeHtml(s.name)}</span><span>${s.khachMoi} khách mới · ${s.quaHan} quá hạn · ${s.viPham} vi phạm</span></li>`)
+      .join('');
+
+    return `
+      <div class="card">
+        <h2>Hôm nay</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="value">${t.khachMoi ?? '–'}</div><div class="label">Khách mới</div></div>
+          <div class="stat"><div class="value">${t.clickQC ?? '–'}</div><div class="label">Click lại QC</div></div>
+          <div class="stat"><div class="value">${t.tongLuot ?? '–'}</div><div class="label">Tổng lượt</div></div>
+          <div class="stat"><div class="value ${deltaClass}">${deltaSign}${t.delta ?? '–'}</div><div class="label">So hôm qua</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Quá hạn &amp; vi phạm SLA</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="value">${data.totalOverdue ?? '–'}</div><div class="label">Quá hạn liên hệ</div></div>
+          <div class="stat"><div class="value">${data.totalViPham ?? '–'}</div><div class="label">Vi phạm SLA</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Phễu giai đoạn</h2>
+        <ul class="row-list">${funnelHtml || '<li>Chưa có dữ liệu</li>'}</ul>
+      </div>
+
+      <div class="card">
+        <h2>Nguồn lead (${escapeHtml((data.sources && data.sources.scope) || '')})</h2>
+        <ul class="row-list">${sourcesHtml || '<li>Chưa có dữ liệu</li>'}</ul>
+      </div>
+
+      <div class="card">
+        <h2>Hoạt động Sales</h2>
+        <ul class="row-list">${salesHtml || '<li>Chưa có dữ liệu</li>'}</ul>
+      </div>
+
+      <div class="card">
+        <h2>Tầng 1 — Ads &amp; ROAS</h2>
+        <div class="placeholder">Chờ dữ liệu — chưa triển khai (Chi phí/CTR/CPC, Cost per Lead, ROAS)</div>
+      </div>
+    `;
+  }
+
+  async function loadTabA() {
+    const el = document.getElementById('tab-a-content');
+    if (!CONFIG.token) {
+      el.innerHTML = '<p class="error">Chưa cấu hình token — điền CONFIG.token trong index.html</p>';
+      return;
+    }
+    el.className = 'loading';
+    el.textContent = 'Đang tải...';
+    try {
+      const data = await jsonp('getDashboardData', {});
+      if (data.error) {
+        el.className = 'error';
+        el.textContent = 'Lỗi: ' + data.error;
+        return;
+      }
+      el.className = '';
+      el.innerHTML = renderTabA(data);
+    } catch (err) {
+      el.className = 'error';
+      el.textContent = 'Không tải được dữ liệu: ' + err.message;
+    }
+  }
+
+  loadTabA();
+
+  // ── Service worker ───────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+  }
+</script>
+
 </body>
 </html>

@@ -1,0 +1,11 @@
+{
+  "name": "Command Center",
+  "short_name": "CmdCenter",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#2563eb",
+  "lang": "vi",
+  "icons": []
+}

@@ -1,0 +1,101 @@
+// Command Center — script setup/khảo sát một lần (chạy tay từ Apps Script editor)
+
+var CC_SHEET_ID = '1SMvxCXdPZcKrpMSTJpv4-OpoD2G8lUKTA70sdBMM9Mo';
+var ADS_SHEET_ID = '1mTLWk3qig3sdC9MhRRPO72Xj2oavyF_niuNonnCBvbk';
+var CRM_SHEET_ID = '1okp3LAwCCLSM8mycfPWRMF-78aS4O7wkQtPakGLcsfM';
+
+// Schema theo SPEC.md mục 7
+var SCHEMAS = {
+  'DuAn_QuyB': ['id', 'ten', 'mo_ta', 'trang_thai', 'buoc_hien_tai', 'tong_buoc', 'ngay_tao', 'cap_nhat_cuoi'],
+  'NhatKy_QuyB': ['timestamp', 'id_du_an', 'buoc', 'ghi_chu_mot_dong'],
+  'VideoLog_QuyC': ['timestamp', 'kenh', 'link', 'tuan_iso'],
+  'KenhStats_QuyC': ['ngay', 'tiktok_follow', 'fb1_follow', 'fb2_follow', 'group_thanhvien', 'cau_hoi_inbound'],
+  'NghiThuc': ['tuan_iso', 'loai', 'uu_tien_A', 'uu_tien_B', 'uu_tien_C', 'video_dat', 'quyB_capnhat', 'viec_miss', 'nang_luong', 'timestamp'],
+  'CaiDat': ['khoa', 'gia_tri']
+};
+
+// Giá trị mặc định CaiDat — token/chat_id/URL để trống, tự điền tay sau
+var CAIDAT_DEFAULTS = [
+  ['token_api', ''],
+  ['telegram_bot_token', ''],
+  ['telegram_chat_id', ''],
+  ['ngan_sach_thang', ''],
+  ['chi_phi_ngay_full', 1000000],
+  ['nguong_ngay_don', 1200000],
+  ['so_ngay_tri_tre', 4],
+  ['muc_tieu_video_tuan', 3],
+  ['ads_sheet_id', ADS_SHEET_ID],
+  ['crm_sheet_id', CRM_SHEET_ID],
+  ['crm_webapp_url', '']
+];
+
+function setupSheets() {
+  var ss = SpreadsheetApp.openById(CC_SHEET_ID);
+
+  Object.keys(SCHEMAS).forEach(function (name) {
+    var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
+    var headers = SCHEMAS[name];
+
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    sheet.autoResizeColumns(1, headers.length);
+  });
+
+  seedCaiDat(ss.getSheetByName('CaiDat'));
+
+  // Dọn sheet mặc định "Sheet1" nếu còn trống và không thuộc schema
+  var defaultSheet = ss.getSheetByName('Sheet1');
+  if (defaultSheet && defaultSheet.getLastRow() === 0 && ss.getSheets().length > 1) {
+    ss.deleteSheet(defaultSheet);
+  }
+
+  Logger.log('Đã tạo/cập nhật ' + Object.keys(SCHEMAS).length + ' tab trong Sheet Command Center.');
+}
+
+// Chỉ thêm khóa còn thiếu — không ghi đè token/URL đã điền tay
+function seedCaiDat(sheet) {
+  var lastRow = sheet.getLastRow();
+  var existingKeys = {};
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, 1).getValues().forEach(function (row) {
+      existingKeys[row[0]] = true;
+    });
+  }
+
+  var toAppend = CAIDAT_DEFAULTS.filter(function (pair) {
+    return !existingKeys[pair[0]];
+  });
+
+  if (toAppend.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, 2).setValues(toAppend);
+  }
+}
+
+function khaoSat() {
+  var crm = SpreadsheetApp.openById(CRM_SHEET_ID);
+  logSheetSample(crm, 'Thống kê lượt ngày', 3);
+  logSheetSample(crm, 'Lịch sử liên hệ', 3);
+}
+
+function logSheetSample(ss, sheetName, numRows) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    Logger.log('Không tìm thấy tab: ' + sheetName);
+    return;
+  }
+
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  Logger.log('--- ' + sheetName + ' (' + lastRow + ' dòng x ' + lastCol + ' cột) ---');
+
+  var rows = Math.min(numRows, lastRow);
+  if (rows === 0) {
+    Logger.log('(trống)');
+    return;
+  }
+
+  sheet.getRange(1, 1, rows, lastCol).getValues().forEach(function (row, i) {
+    Logger.log('Dòng ' + (i + 1) + ': ' + JSON.stringify(row));
+  });
+}
