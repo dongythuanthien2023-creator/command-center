@@ -1,0 +1,21 @@
+# Secrets / config cục bộ — KHÔNG BAO GIỜ commit token
+.env
+.env.*
+*secret*
+*token*
+.clasp.json
+.claspignore
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Node (nếu sau này thêm tooling build)
+node_modules/
+npm-debug.log*
+
+# Log / temp
+*.log
+*.tmp
