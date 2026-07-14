@@ -55,6 +55,31 @@ Nguyên tắc: **một nguồn logic duy nhất** — chỉ số nào CRM đã t
 - Ngày kiểu VN "dd/mm/yyyy": LUÔN parse thủ công, KHÔNG dùng `new Date(string)` trực tiếp (JS hiểu mm/dd)
 - Git: commit message tiếng Việt ngắn gọn; push cuối mỗi phiên làm việc
 
+## Quy trình đồng bộ đa máy (làm việc luân phiên PC nhà / laptop / máy khác)
+Dự án không có bước build (HTML/JS/CSS thuần + Apps Script), nên đồng bộ = đồng bộ Git, không cần cài thêm gì.
+
+**Đầu mỗi phiên làm việc** (bất kỳ máy nào, kể cả máy đang dùng thường xuyên):
+```
+git pull origin main
+```
+Luôn pull trước khi sửa gì, kể cả khi "chắc chắn máy này đang mới nhất" — tránh ghi đè thay đổi từ máy kia.
+
+**Cuối mỗi phiên làm việc** (bắt buộc, đừng bỏ qua dù việc nhỏ):
+```
+git add -A
+git commit -m "mô tả ngắn gọn tiếng Việt"
+git push origin main
+```
+Nếu `git status` không có gì thay đổi thì bỏ qua bước này, không tạo commit rỗng.
+
+**Thiết lập lần đầu trên máy mới** (ví dụ PC nhà, ổ cứng riêng chưa có repo):
+```
+git clone https://github.com/dongythuanthien2023-creator/command-center.git
+```
+Chỉ cần chạy 1 lần trên mỗi máy mới. Sau đó máy đó dùng lại đúng 2 lệnh pull/push ở trên như mọi máy khác.
+
+Lưu ý: token trong `CaiDat` (Sheet) và token trong `CONFIG.token` của `index.html` đã nằm sẵn trong code/Sheet — không cần cấu hình gì thêm riêng theo máy. Thư mục `.claude/` (cấu hình cục bộ của Claude Code) không sync qua Git, mỗi máy tự có bản riêng — bình thường, không phải lỗi.
+
 ## Nhắc nhở — Telegram bot (trigger Apps Script)
 - 08:00 hằng ngày: tóm tắt Ads hôm qua + cảnh báo + trạng thái dự án Quỹ B Active
 - 19:00 hằng ngày: nhắc phiên content + "Quỹ B hôm nay tiến được gì?"
