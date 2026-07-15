@@ -24,6 +24,8 @@ function doGet(e) {
     data = getDuAnQuyBData(config);
   } else if (action === 'getQuyC') {
     data = getQuyCData(config);
+  } else if (action === 'getNghiThuc') {
+    data = getNghiThucData(config);
   } else {
     data = { error: 'Unknown action' };
   }
@@ -48,6 +50,12 @@ function doPost(e) {
     danhDauVideoQuyC(e.parameter);
   } else if (action === 'nhapKenhStatsQuyC') {
     nhapKenhStatsQuyC(e.parameter);
+  } else if (action === 'nopTuanMoi') {
+    nopTuanMoi(e.parameter);
+  } else if (action === 'nopDongTuan') {
+    nopDongTuan(e.parameter);
+  } else if (action === 'nopChanDoan') {
+    nopChanDoan(e.parameter);
   }
 
   return ContentService.createTextOutput('');
@@ -502,6 +510,204 @@ function getQuyCData(config) {
   };
 }
 
+// Quy đổi tuần ISO về ngày Thứ Hai(1)..Chủ Nhật(7) của tuần đó
+function isoWeekToDate(isoWeekStr, dayOfWeek) {
+  var parts = isoWeekStr.split('-W');
+  var year = Number(parts[0]);
+  var week = Number(parts[1]);
+  var simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  var dow = simple.getUTCDay() || 7;
+  var monday = new Date(simple);
+  monday.setUTCDate(simple.getUTCDate() - dow + 1);
+  var target = new Date(monday);
+  target.setUTCDate(monday.getUTCDate() + (dayOfWeek - 1));
+  return target;
+}
+
+// Ghi/cập nhật 1 khóa CaiDat (dùng cho phanh tự động — không có sẵn hàm ghi trước đó)
+function setCaiDatValue(key, value) {
+  var sheet = SpreadsheetApp.openById(CC_SHEET_ID).getSheetByName('CaiDat');
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === key) {
+      sheet.getRange(i + 1, 2).setValue(value);
+      return;
+    }
+  }
+  sheet.appendRow([key, value]);
+}
+
+function nopTuanMoi(p) {
+  var sheet = SpreadsheetApp.openById(CC_SHEET_ID).getSheetByName('NghiThuc');
+  var now = new Date();
+  sheet.appendRow([getIsoWeekString(now), 'tuanmoi', p.uuTienA || '', p.uuTienB || '', p.uuTienC || '', '', '', '', '', now]);
+}
+
+// Ghi #dongtuan + kiểm tra phanh tự động: 2 lần #dongtuan liên tiếp gần nhất đều năng lượng ≤4
+// → mục tiêu video về 2, dự án Active tự Đóng băng. Thoát chế độ khi năng lượng ≥6.
+function nopDongTuan(p) {
+  var ss = SpreadsheetApp.openById(CC_SHEET_ID);
+  var sheet = ss.getSheetByName('NghiThuc');
+  var now = new Date();
+  var nangLuong = Number(p.nangLuong) || 0;
+
+  sheet.appendRow([getIsoWeekString(now), 'dongtuan', '', '', '', Number(p.video) || 0, Number(p.quyBCapNhat) || 0, Number(p.viecMiss) || 0, nangLuong, now]);
+
+  var data = sheet.getDataRange().getValues();
+  var header = data[0];
+  var col = {};
+  header.forEach(function (h, i) { col[h] = i; });
+
+  var dongTuanEntries = [];
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][col.loai] === 'dongtuan') {
+      dongTuanEntries.push({ timestamp: data[i][col.timestamp], nangLuong: Number(data[i][col.nang_luong]) || 0 });
+    }
+  }
+  dongTuanEntries.sort(function (a, b) { return new Date(a.timestamp) - new Date(b.timestamp); });
+  var lastTwo = dongTuanEntries.slice(-2);
+
+  var config = getConfig();
+  var dangGiamTai = config.che_do_giam_tai === 'true' || config.che_do_giam_tai === true;
+
+  if (lastTwo.length === 2 && lastTwo[0].nangLuong <= 4 && lastTwo[1].nangLuong <= 4) {
+    if (!dangGiamTai) {
+      setCaiDatValue('che_do_giam_tai', 'true');
+      setCaiDatValue('muc_tieu_video_tuan', 2);
+      freezeActiveDuAnQuyB();
+    }
+  } else if (dangGiamTai && nangLuong >= 6) {
+    setCaiDatValue('che_do_giam_tai', 'false');
+    setCaiDatValue('muc_tieu_video_tuan', 3);
+  }
+}
+
+function freezeActiveDuAnQuyB() {
+  var sheet = SpreadsheetApp.openById(CC_SHEET_ID).getSheetByName('DuAn_QuyB');
+  var data = sheet.getDataRange().getValues();
+  var header = data[0];
+  var trangThaiCol = header.indexOf('trang_thai');
+  var capNhatCol = header.indexOf('cap_nhat_cuoi');
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][trangThaiCol] === 'Active') {
+      sheet.getRange(i + 1, trangThaiCol + 1).setValue('Đóng băng');
+      sheet.getRange(i + 1, capNhatCol + 1).setValue(new Date());
+    }
+  }
+}
+
+// Câu trả lời 1 dòng khi banner "Hệ thống hỏng ở đâu?" xuất hiện — mượn cột uu_tien_A (loai khác 'tuanmoi' nên không đụng dữ liệu #tuanmoi)
+function nopChanDoan(p) {
+  var sheet = SpreadsheetApp.openById(CC_SHEET_ID).getSheetByName('NghiThuc');
+  var now = new Date();
+  sheet.appendRow([getIsoWeekString(now), 'chan_doan', p.traLoi || '', '', '', '', '', '', '', now]);
+}
+
+// So các mốc #tuanmoi (kỳ vọng Thứ Hai) và #dongtuan (kỳ vọng Thứ Sáu) đã QUA HẠN — 2 mốc liên tiếp gần nhất
+// đều chưa nộp thì coi là miss-streak, trừ khi đã có câu trả lời #chan_doan sau mốc miss thứ 2.
+// Chỉ tính các mốc SAU lần dùng nghi thức đầu tiên (earliestEntryDate) — tránh báo miss oan cho các tuần
+// trước khi tính năng này tồn tại/được dùng lần đầu.
+function computeMissStreak(tuanmoiWeeks, dongtuanWeeks, chanDoanTimestamps, currentWeek, now, earliestEntryDate) {
+  if (!earliestEntryDate) return false;
+
+  var weeksList = [currentWeek];
+  var cursor = currentWeek;
+  for (var k = 0; k < 8; k++) {
+    cursor = addWeeksToIso(cursor, -1);
+    weeksList.push(cursor);
+  }
+  weeksList.reverse();
+
+  var events = [];
+  weeksList.forEach(function (wk) {
+    var mondayDate = isoWeekToDate(wk, 1);
+    var fridayDate = isoWeekToDate(wk, 5);
+    if (mondayDate <= now && mondayDate >= earliestEntryDate) events.push({ type: 'tuanmoi', week: wk, date: mondayDate, done: tuanmoiWeeks.indexOf(wk) !== -1 });
+    if (fridayDate <= now && fridayDate >= earliestEntryDate) events.push({ type: 'dongtuan', week: wk, date: fridayDate, done: dongtuanWeeks.indexOf(wk) !== -1 });
+  });
+  events.sort(function (a, b) { return a.date - b.date; });
+
+  var lastTwo = events.slice(-2);
+  var rawMiss = lastTwo.length === 2 && !lastTwo[0].done && !lastTwo[1].done;
+  if (!rawMiss) return false;
+
+  var secondMissDate = lastTwo[1].date;
+  var resolved = chanDoanTimestamps.some(function (ts) { return ts && new Date(ts) > secondMissDate; });
+  return !resolved;
+}
+
+function getNghiThucData(config) {
+  var sheet = SpreadsheetApp.openById(CC_SHEET_ID).getSheetByName('NghiThuc');
+  var data = sheet.getDataRange().getValues();
+  var now = new Date();
+  var currentWeek = getIsoWeekString(now);
+
+  var tuanmoiWeeks = [];
+  var dongtuanWeeks = [];
+  var chanDoanTimestamps = [];
+  var energySeries = [];
+  var lastTuanMoi = null;
+  var lastDongTuan = null;
+  var earliestEntryDate = null;
+
+  if (data.length > 1) {
+    var header = data[0];
+    var col = {};
+    header.forEach(function (h, i) { col[h] = i; });
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var loai = row[col.loai];
+      var wk = row[col.tuan_iso];
+      var rowTs = row[col.timestamp] ? new Date(row[col.timestamp]) : null;
+      if (rowTs && (!earliestEntryDate || rowTs < earliestEntryDate)) earliestEntryDate = rowTs;
+
+      if (loai === 'tuanmoi') {
+        tuanmoiWeeks.push(wk);
+        if (!lastTuanMoi || wk > lastTuanMoi.week) {
+          lastTuanMoi = { week: wk, uuTienA: row[col.uu_tien_A], uuTienB: row[col.uu_tien_B], uuTienC: row[col.uu_tien_C] };
+        }
+      } else if (loai === 'dongtuan') {
+        dongtuanWeeks.push(wk);
+        var nl = Number(row[col.nang_luong]) || 0;
+        energySeries.push({
+          week: wk,
+          nangLuong: nl,
+          timestamp: row[col.timestamp] ? new Date(row[col.timestamp]).toISOString() : null
+        });
+        if (!lastDongTuan || wk > lastDongTuan.week) {
+          lastDongTuan = {
+            week: wk,
+            video: Number(row[col.video_dat]) || 0,
+            quyBCapNhat: Number(row[col.quyB_capnhat]) || 0,
+            viecMiss: Number(row[col.viec_miss]) || 0,
+            nangLuong: nl
+          };
+        }
+      } else if (loai === 'chan_doan') {
+        chanDoanTimestamps.push(row[col.timestamp]);
+      }
+    }
+  }
+
+  energySeries.sort(function (a, b) { return (a.week || '').localeCompare(b.week || ''); });
+  energySeries = energySeries.slice(-10);
+
+  var missStreak = computeMissStreak(tuanmoiWeeks, dongtuanWeeks, chanDoanTimestamps, currentWeek, now, earliestEntryDate);
+
+  return {
+    currentWeek: currentWeek,
+    tuanMoiDoneThisWeek: tuanmoiWeeks.indexOf(currentWeek) !== -1,
+    dongTuanDoneThisWeek: dongtuanWeeks.indexOf(currentWeek) !== -1,
+    lastTuanMoi: lastTuanMoi,
+    lastDongTuan: lastDongTuan,
+    energySeries: energySeries,
+    nguongNangLuong: 4,
+    dangGiamTai: config.che_do_giam_tai === 'true' || config.che_do_giam_tai === true,
+    missStreak: missStreak
+  };
+}
+
 // Gọi CRM Web App từ server (không kèm callback — server-to-server không bị CORS),
 // forward nguyên JSON trả về. doGet của CRM không xác thực token nên chỉ cần đúng action + params.
 function proxyCrm(action, params, crmUrl) {
@@ -551,4 +757,3 @@ function getConfig() {
   return config;
 }
 
-// TODO: doPost — ghi NghiThuc (form #tuanmoi/#dongtuan, phanh tự động giảm tải)

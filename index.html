@@ -223,6 +223,39 @@
   .kenh-form label { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
   .kenh-form input:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
 
+  .banner-danger {
+    padding: 14px 15px; border-radius: 14px; background: rgba(189,85,72,0.12); border: 1px solid rgba(189,85,72,0.4);
+  }
+  .banner-danger .bd-title { font-size: 13.5px; font-weight: 700; color: var(--danger); margin: 0 0 4px; }
+  .banner-danger p { margin: 0 0 10px; font-size: 13px; color: var(--ink); line-height: 1.45; }
+  .banner-danger .bd-form { display: flex; gap: 8px; }
+  .banner-danger input {
+    flex: 1; font-family: var(--font-body); font-size: 13px; color: var(--ink); background: var(--surface-2);
+    border: 1px solid rgba(189,85,72,0.4); border-radius: 9px; padding: 9px 11px;
+  }
+  .banner-danger input:focus-visible { outline: 2px solid var(--danger); outline-offset: 1px; }
+  .banner-warn { padding: 12px 14px; border-radius: 14px; background: rgba(189,127,58,0.12); border: 1px solid rgba(189,127,58,0.35); font-size: 13px; color: var(--ink); line-height: 1.45; }
+
+  .ritual-form { display: flex; flex-direction: column; gap: 8px; }
+  .ritual-form label { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
+  .ritual-form input {
+    font-family: var(--font-body); font-size: 13px; color: var(--ink); background: var(--surface-2);
+    border: 1px solid var(--hairline); border-radius: 9px; padding: 9px 11px; width: 100%;
+  }
+  .ritual-form input:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+  .ritual-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .priority-item { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--hairline-soft); font-size: 13px; }
+  .priority-item:last-child { border-bottom: none; }
+  .priority-letter { font-family: var(--font-display); color: var(--brass); font-size: 15px; width: 18px; flex: none; }
+
+  .dongtuan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dongtuan-cell { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+  .dongtuan-cell .v { font-family: var(--font-mono); font-size: 18px; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .dongtuan-cell .l { font-size: 10.5px; color: var(--ink-faint); margin-top: 2px; }
+
+  .energy-wrap svg { width: 100%; height: 100px; display: block; }
+
   .placeholder { color: var(--ink-faint); font-size: 13px; text-align: center; padding: 34px 10px; }
   .loading, .error { text-align: center; padding: 24px 0; color: var(--ink-faint); font-size: 14px; }
   .error { color: var(--danger); }
@@ -295,7 +328,7 @@
   </section>
 
   <section class="tab-panel" id="panel-d" data-title="Nghi thức">
-    <div class="card"><div class="placeholder">Tab Nghi thức — sắp triển khai (#tuanmoi / #dongtuan)</div></div>
+    <div id="tab-d-content" class="loading">Đang tải...</div>
   </section>
 </main>
 </div>
@@ -344,6 +377,7 @@
   const panels = { a: 'panel-a', b: 'panel-b', c: 'panel-c', d: 'panel-d' };
   let tabBLoaded = false;
   let tabCLoaded = false;
+  let tabDLoaded = false;
   navButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       navButtons.forEach((b) => b.classList.remove('active'));
@@ -360,6 +394,10 @@
       if (btn.dataset.tab === 'c' && !tabCLoaded) {
         tabCLoaded = true;
         loadTabC();
+      }
+      if (btn.dataset.tab === 'd' && !tabDLoaded) {
+        tabDLoaded = true;
+        loadTabD();
       }
     });
   });
@@ -419,6 +457,8 @@
   const ICON_BARS = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><rect x="3" y="11" width="3" height="6" rx="0.8" fill="currentColor"/><rect x="8.5" y="7" width="3" height="10" rx="0.8" fill="currentColor"/><rect x="14" y="3" width="3" height="14" rx="0.8" fill="currentColor"/></svg>';
   const ICON_GAUGE = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M3 14A7 7 0 0 1 17 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10 14L13.2 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10" cy="14" r="1.1" fill="currentColor"/></svg>';
   const ICON_TRIANGLE = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M10 3L18 16H2L10 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 8.5V12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10" cy="14.2" r="0.9" fill="currentColor"/></svg>';
+  const ICON_FLAG = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M5 17V3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 4H15L12.5 7.5L15 11H5" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+  const ICON_GRID = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="11" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="11" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>';
 
   // ── Sparkline dùng chung ─────────────────────────────────
   function drawSparkline(svgId, values) {
@@ -1068,6 +1108,202 @@
         cauHoiInbound: document.getElementById('kenh-inbound').value || 0
       });
       setTimeout(() => loadTabC({ silent: true }), 800);
+      return;
+    }
+  });
+
+  // ── Tab D — Nghi thức ─────────────────────────────────────
+  let tabDData = null;
+
+  function drawEnergyChart(svgId, values, threshold) {
+    const svg = document.getElementById(svgId);
+    if (!svg || values.length === 0) return;
+    const w = 280, h = 100, pad = 10, min = 1, max = 10;
+    const xAt = (i) => pad + (values.length === 1 ? (w - pad * 2) / 2 : (i / (values.length - 1)) * (w - pad * 2));
+    const yAt = (v) => h - pad - ((v - min) / (max - min)) * (h - pad * 2);
+    const pts = values.map((v, i) => [xAt(i), yAt(v)]);
+    const line = pts.map((p) => p.join(',')).join(' ');
+    const dangerY = yAt(threshold);
+    const dotsSvg = pts.map((p, i) => {
+      const danger = values[i] <= threshold;
+      const r = i === pts.length - 1 ? 3.4 : 2.4;
+      return `<circle cx="${p[0]}" cy="${p[1]}" r="${r}" fill="${danger ? '#bd5548' : '#c9a24b'}"/>`;
+    }).join('');
+    svg.innerHTML = `
+      <rect x="0" y="${dangerY}" width="${w}" height="${h - pad - dangerY}" fill="#bd5548" opacity="0.10"/>
+      <line x1="0" y1="${dangerY}" x2="${w}" y2="${dangerY}" stroke="#bd5548" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
+      ${values.length > 1 ? `<polyline points="${line}" fill="none" stroke="#c9a24b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+      ${dotsSvg}`;
+  }
+
+  // Ưu tiên: miss 2 nghi thức liên tiếp (khẩn cấp, bắt trả lời) > đang giảm tải (khẩn cấp, dai dẳng)
+  // > nhắc đúng ngày kỳ vọng (Thứ Hai/Thứ Sáu) > im lặng nếu không có gì đáng nói
+  function renderTopBanner(data) {
+    if (data.missStreak) {
+      return `
+        <div class="banner-danger">
+          <p class="bd-title">Hệ thống hỏng ở đâu?</p>
+          <p>Đã bỏ lỡ 2 mốc nghi thức liên tiếp (#tuanmoi Thứ Hai / #dongtuan Thứ Sáu). Trả lời 1 dòng trước khi tiếp tục:</p>
+          <div class="bd-form">
+            <input type="text" id="chan-doan-input" placeholder="Vướng ở đâu..." maxlength="140" />
+            <button class="qb-btn primary" data-action="chan-doan-submit" type="button">Gửi</button>
+          </div>
+        </div>`;
+    }
+    if (data.dangGiamTai) {
+      return `<div class="banner-warn">Đang ở <strong>chế độ giảm tải</strong> — mục tiêu video còn 2/tuần, dự án Quỹ B tạm Đóng băng. Duy trì đến khi năng lượng đạt ≥6 trong #dongtuan.</div>`;
+    }
+    const jsDay = new Date().getDay();
+    if (jsDay === 1 && !data.tuanMoiDoneThisWeek) {
+      return renderInsight(`Hôm nay Thứ Hai — chưa nộp <strong>#tuanmoi</strong> tuần này.`);
+    }
+    if (jsDay === 5 && !data.dongTuanDoneThisWeek) {
+      return renderInsight(`Hôm nay Thứ Sáu — chưa nộp <strong>#dongtuan</strong> tuần này.`);
+    }
+    return '';
+  }
+
+  function renderTuanMoiCard(data) {
+    if (data.tuanMoiDoneThisWeek && data.lastTuanMoi) {
+      const lt = data.lastTuanMoi;
+      return `
+        <div class="card">
+          <div class="card__head"><div class="card__title-group">${ICON_FLAG}<p class="card__title">#tuanmoi — đã nộp tuần này</p></div></div>
+          <div class="priority-item"><span class="priority-letter">A</span><span>${escapeHtml(lt.uuTienA || '—')}</span></div>
+          <div class="priority-item"><span class="priority-letter">B</span><span>${escapeHtml(lt.uuTienB || '—')}</span></div>
+          <div class="priority-item"><span class="priority-letter">C</span><span>${escapeHtml(lt.uuTienC || '—')}</span></div>
+        </div>`;
+    }
+    const hint = data.lastTuanMoi || {};
+    return `
+      <div class="card">
+        <div class="card__head"><div class="card__title-group">${ICON_FLAG}<p class="card__title">#tuanmoi tuần này</p></div></div>
+        <div class="ritual-form">
+          <div><label>Ưu tiên A</label><input type="text" id="uutien-a" placeholder="${escapeHtml(hint.uuTienA || 'Việc quan trọng nhất')}" maxlength="80" /></div>
+          <div><label>Ưu tiên B</label><input type="text" id="uutien-b" placeholder="${escapeHtml(hint.uuTienB || '')}" maxlength="80" /></div>
+          <div><label>Ưu tiên C</label><input type="text" id="uutien-c" placeholder="${escapeHtml(hint.uuTienC || '')}" maxlength="80" /></div>
+          <button class="qb-btn primary" data-action="tuanmoi-submit" type="button">Gửi #tuanmoi</button>
+        </div>
+      </div>`;
+  }
+
+  function renderDongTuanCard(data) {
+    if (data.dongTuanDoneThisWeek && data.lastDongTuan) {
+      const ld = data.lastDongTuan;
+      return `
+        <div class="card">
+          <div class="card__head"><div class="card__title-group">${ICON_GRID}<p class="card__title">#dongtuan — đã nộp tuần này</p></div></div>
+          <div class="dongtuan-grid">
+            <div class="dongtuan-cell"><div class="v">${ld.video}</div><div class="l">Video</div></div>
+            <div class="dongtuan-cell"><div class="v">${ld.quyBCapNhat}</div><div class="l">Lần cập nhật Quỹ B</div></div>
+            <div class="dongtuan-cell"><div class="v">${ld.viecMiss}</div><div class="l">Việc miss</div></div>
+            <div class="dongtuan-cell"><div class="v">${ld.nangLuong}/10</div><div class="l">Năng lượng</div></div>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="card">
+        <div class="card__head"><div class="card__title-group">${ICON_GRID}<p class="card__title">#dongtuan tuần này</p></div></div>
+        <div class="ritual-form">
+          <div class="ritual-form-row">
+            <div><label>Video đạt</label><input type="number" id="dt-video" inputmode="numeric" /></div>
+            <div><label>Lần cập nhật Quỹ B</label><input type="number" id="dt-quyb" inputmode="numeric" /></div>
+          </div>
+          <div class="ritual-form-row">
+            <div><label>Việc miss</label><input type="number" id="dt-miss" inputmode="numeric" /></div>
+            <div><label>Năng lượng (1-10)</label><input type="number" id="dt-nangluong" inputmode="numeric" min="1" max="10" /></div>
+          </div>
+          <button class="qb-btn primary" data-action="dongtuan-submit" type="button">Gửi #dongtuan</button>
+        </div>
+      </div>`;
+  }
+
+  function renderEnergyCard(data) {
+    if (!data.energySeries || data.energySeries.length === 0) {
+      return `
+        <div class="card">
+          <div class="card__head"><p class="card__title">Năng lượng theo tuần</p></div>
+          <div class="placeholder">Chưa có dữ liệu — nộp #dongtuan để bắt đầu theo dõi</div>
+        </div>`;
+    }
+    return `
+      <div class="card">
+        <div class="card__head"><p class="card__title">Năng lượng theo tuần</p></div>
+        <div class="energy-wrap"><svg id="energy-chart" viewBox="0 0 280 100" preserveAspectRatio="none"></svg></div>
+      </div>`;
+  }
+
+  function renderTabD(data) {
+    return `
+      ${renderTopBanner(data)}
+      ${renderTuanMoiCard(data)}
+      ${renderDongTuanCard(data)}
+      ${renderEnergyCard(data)}
+    `;
+  }
+
+  async function loadTabD(opts) {
+    opts = opts || {};
+    const el = document.getElementById('tab-d-content');
+    if (!opts.silent) {
+      el.className = 'loading';
+      el.textContent = 'Đang tải...';
+    }
+    try {
+      const data = await jsonp('getNghiThuc', {});
+      if (data.error) {
+        el.className = 'error';
+        el.textContent = 'Lỗi: ' + data.error;
+        return;
+      }
+      tabDData = data;
+      el.className = '';
+      el.innerHTML = renderTabD(data);
+      drawEnergyChart('energy-chart', (data.energySeries || []).map((s) => s.nangLuong), data.nguongNangLuong || 4);
+    } catch (err) {
+      el.className = 'error';
+      el.textContent = 'Không tải được dữ liệu: ' + err.message;
+    }
+  }
+
+  document.getElementById('tab-d-content').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+
+    if (action === 'tuanmoi-submit') {
+      const a = document.getElementById('uutien-a').value.trim();
+      const b = document.getElementById('uutien-b').value.trim();
+      const c = document.getElementById('uutien-c').value.trim();
+      if (!a) { document.getElementById('uutien-a').focus(); return; }
+      btn.disabled = true;
+      btn.textContent = 'Đang gửi...';
+      await postAction('nopTuanMoi', { uuTienA: a, uuTienB: b, uuTienC: c });
+      setTimeout(() => loadTabD({ silent: true }), 800);
+      return;
+    }
+
+    if (action === 'dongtuan-submit') {
+      const video = document.getElementById('dt-video').value || 0;
+      const quyb = document.getElementById('dt-quyb').value || 0;
+      const miss = document.getElementById('dt-miss').value || 0;
+      const nangLuongEl = document.getElementById('dt-nangluong');
+      if (!nangLuongEl.value) { nangLuongEl.focus(); return; }
+      btn.disabled = true;
+      btn.textContent = 'Đang gửi...';
+      await postAction('nopDongTuan', { video, quyBCapNhat: quyb, viecMiss: miss, nangLuong: nangLuongEl.value });
+      setTimeout(() => loadTabD({ silent: true }), 800);
+      return;
+    }
+
+    if (action === 'chan-doan-submit') {
+      const input = document.getElementById('chan-doan-input');
+      const traLoi = input.value.trim();
+      if (!traLoi) { input.focus(); return; }
+      btn.disabled = true;
+      btn.textContent = 'Đang gửi...';
+      await postAction('nopChanDoan', { traLoi });
+      setTimeout(() => loadTabD({ silent: true }), 800);
       return;
     }
   });
