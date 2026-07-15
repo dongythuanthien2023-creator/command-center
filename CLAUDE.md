@@ -51,7 +51,7 @@ Nguyên tắc: **một nguồn logic duy nhất** — chỉ số nào CRM đã t
 ## Bảo mật & quy ước
 - Telegram bot token + chat_id: CHỈ nằm trong tab CaiDat của Sheet. KHÔNG BAO GIỜ hardcode trong code, KHÔNG commit lên Git
 - Repo GitHub Pages: public (bắt buộc với Pages gói free) → token bảo vệ API nằm trong CaiDat, URL Apps Script không đưa vào README
-- UI + comment code: tiếng Việt. Font Be Vietnam Pro, theme Sáng/Tối/Auto theo giờ (06–18h sáng) — kế thừa phong cách CRM v3.2
+- UI + comment code: tiếng Việt. Phong cách "Dark luxury" — nền đen tuyền + nhũ vàng/đồng, 1 theme tối duy nhất (không Sáng/Auto, khác CRM v3.2), font hệ thống (ui-serif tiêu đề/số lớn, system-ui nội dung, ui-monospace số liệu). Chốt theo mockup đã duyệt 15/07/2026
 - Ngày kiểu VN "dd/mm/yyyy": LUÔN parse thủ công, KHÔNG dùng `new Date(string)` trực tiếp (JS hiểu mm/dd)
 - Git: commit message tiếng Việt ngắn gọn; push cuối mỗi phiên làm việc
 
