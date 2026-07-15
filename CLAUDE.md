@@ -40,6 +40,17 @@ Nguyên tắc: **một nguồn logic duy nhất** — chỉ số nào CRM đã t
 - Cảnh báo dựa trên độ lệch so với **MA7 của nhóm**, không so hôm qua, không so trung bình chung
 - CaiDat: `chi_phi_ngay_full = 1000000`; nhịp tháng = số ngày thực chạy × chi_phi_ngay_full; cảnh báo ngày đơn > 1.2tr (chỉnh được)
 
+## Quyết định kỹ thuật đã chốt khi code (15/07/2026) — không tự đổi lại nếu chưa hỏi
+- Phân nhóm campaign: kiểm tra campaign có chứa "Genkii Hub" TRƯỚC, rồi mới kiểm tra tiền tố "Tương tác"/"Ads chuyển đổi" — vì có campaign vừa khớp cả 2 pattern (vd "Tương tác -Genkii Hub")
+- `computeAdsData` trả field `today` nhưng thực chất luôn là **ngày liền trước** (báo cáo Ads ghi ~2h sáng cho hôm qua) — UI ghi rõ "hôm qua", không phải "hôm nay" live
+- Ngưỡng "đáng chú ý" khi CPC nhóm lệch MA7: ±20% — số tự chọn (SPEC gốc không quy định), chỉnh trong `buildInsight`/`computeAdsData` nếu thấy ồn hoặc im quá
+- Mọi POST (WIP=1, ghi tiến độ Quỹ B, đánh dấu video Quỹ C, nghi thức) đều no-cors "bắn và quên" — client KHÔNG đọc được response; biết thành công/thất bại chỉ qua lần GET reload kế tiếp (~800ms sau khi bắn POST)
+- Banner "Đáng chú ý" (mọi tab) chỉ hiện khi có cảnh báo thật hoặc mốc thời gian thật đáng nói — không lặp lại số liệu đã có sẵn trong card bên dưới; luôn có nút ẩn (×)
+- Miss-streak (Tab Nghi thức) chỉ tính các mốc Thứ Hai/Thứ Sáu **sau** lần đầu tiên dùng tính năng (earliestEntryDate) — tránh báo miss oan cho các tuần trước khi NghiThuc có dữ liệu
+
+## Trạng thái v1 (cập nhật 15/07/2026)
+Cả 4 tab đã code xong đầy đủ chức năng theo SPEC, đã test qua trình duyệt. Còn thiếu (chưa code, không phải lỗi): Telegram bot nhắc lịch, nút "Hỏi Claude" copy prompt mỗi khối, icon PWA đã có (SVG sao 4 cánh tự vẽ bằng Pillow). Chi tiết phiên làm việc xem `NHATKY.md`.
+
 ## Thời gian lưu giai đoạn — dẫn xuất, KHÔNG cần log mới
 Đọc `Lịch sử liên hệ`, nhóm theo SĐT (fallback Tên), sắp theo thời gian thật (parse "dd/mm/yyyy HH:MM"), phát hiện điểm cột Giai Đoạn đổi giá trị giữa 2 dòng liên tiếp = thời điểm chuyển giai đoạn. Dòng 00:00 (backfill) chỉ dùng làm mốc khởi đầu, không tính là chuyển.
 
