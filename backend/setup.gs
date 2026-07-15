@@ -43,6 +43,7 @@ function setupSheets() {
   });
 
   seedCaiDat(ss.getSheetByName('CaiDat'));
+  seedDuAnQuyB(ss.getSheetByName('DuAn_QuyB'));
 
   // Dọn sheet mặc định "Sheet1" nếu còn trống và không thuộc schema
   var defaultSheet = ss.getSheetByName('Sheet1');
@@ -69,6 +70,31 @@ function seedCaiDat(sheet) {
 
   if (toAppend.length > 0) {
     sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, 2).setValues(toAppend);
+  }
+}
+
+// Khởi tạo 5 dự án Quỹ B theo SPEC.md §4.2 — chỉ thêm dự án còn thiếu (theo tên), không ghi đè tiến độ đã có
+function seedDuAnQuyB(sheet) {
+  var lastRow = sheet.getLastRow();
+  var existingNames = {};
+  if (lastRow > 1) {
+    sheet.getRange(2, 2, lastRow - 1, 1).getValues().forEach(function (row) {
+      existingNames[row[0]] = true;
+    });
+  }
+
+  var now = new Date();
+  var duAnMacDinh = [
+    ['qb-command-center', 'Command Center', 'PWA cá nhân gộp Genkii/Tài sản/Thương hiệu/Nghi thức', 'Active', 0, 10, now, now],
+    ['qb-compliance-engine', 'Compliance engine', '', 'Xếp hàng', 0, 10, now, now],
+    ['qb-protocol-yhct-bes', 'Protocol YHCT BES', '', 'Xếp hàng', 0, 10, now, now],
+    ['qb-knowledge-base-yhct', 'Knowledge base YHCT', '', 'Xếp hàng', 0, 10, now, now],
+    ['qb-tracking-158-seo', 'Tracking 158 bài SEO', '', 'Xếp hàng', 0, 10, now, now]
+  ];
+
+  var toAppend = duAnMacDinh.filter(function (p) { return !existingNames[p[1]]; });
+  if (toAppend.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, 8).setValues(toAppend);
   }
 }
 

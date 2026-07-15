@@ -20,11 +20,31 @@ function doGet(e) {
     data = proxyCrm(action, e.parameter, config.crm_webapp_url);
   } else if (action === 'getAdsToday') {
     data = computeAdsData(config);
+  } else if (action === 'getDuAnQuyB') {
+    data = getDuAnQuyBData(config);
   } else {
     data = { error: 'Unknown action' };
   }
 
   return respond(data, callback);
+}
+
+// POST no-cors "bắn và quên" — client không đọc được response, chỉ tin vào lần GET kế tiếp
+// để biết chắc thay đổi đã áp dụng hay bị từ chối (vd WIP=1).
+function doPost(e) {
+  var config = getConfig();
+  if (!e.parameter.token || e.parameter.token !== config.token_api) {
+    return ContentService.createTextOutput('');
+  }
+
+  var action = e.parameter.action;
+  if (action === 'setTrangThaiQuyB') {
+    setTrangThaiQuyB(e.parameter);
+  } else if (action === 'ghiTienDoQuyB') {
+    ghiTienDoQuyB(e.parameter);
+  }
+
+  return ContentService.createTextOutput('');
 }
 
 // Phân nhóm campaign theo pattern tên (CLAUDE.md) — ưu tiên "Genkii Hub" trước
@@ -220,6 +240,134 @@ function computeAdsData(config) {
   };
 }
 
+// Đọc DuAn_QuyB + tính trì trệ (Active mà không cập nhật > so_ngay_tri_tre ngày)
+function getDuAnQuyBData(config) {
+  var sheet = SpreadsheetApp.openById(CC_SHEET_ID).getSheetByName('DuAn_QuyB');
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { projects: [], hasActive: false };
+
+  var header = data[0];
+  var col = {};
+  header.forEach(function (h, i) { col[h] = i; });
+
+  var soNgayTriTre = Number(config.so_ngay_tri_tre) || 4;
+  var now = new Date();
+  var hasActive = false;
+  var projects = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (!row[col.id]) continue;
+
+    var trangThai = row[col.trang_thai];
+    var capNhat = row[col.cap_nhat_cuoi];
+    var daysSince = capNhat ? Math.floor((now - new Date(capNhat)) / 86400000) : null;
+    var triTre = trangThai === 'Active' && daysSince !== null && daysSince > soNgayTriTre;
+    if (trangThai === 'Active') hasActive = true;
+
+    projects.push({
+      id: row[col.id],
+      ten: row[col.ten],
+      moTa: row[col.mo_ta],
+      trangThai: trangThai,
+      buocHienTai: Number(row[col.buoc_hien_tai]) || 0,
+      tongBuoc: Number(row[col.tong_buoc]) || 0,
+      daysSinceUpdate: daysSince,
+      triTre: triTre
+    });
+  }
+
+  var order = { 'Active': 0, 'Xếp hàng': 1, 'Đóng băng': 2, 'Hoàn thành': 3 };
+  projects.sort(function (a, b) { return (order[a.trangThai] ?? 9) - (order[b.trangThai] ?? 9); });
+
+  attachRecentLogs(projects);
+
+  return { projects: projects, hasActive: hasActive, soNgayTriTre: soNgayTriTre };
+}
+
+// Gắn 5 dòng nhật ký gần nhất (NhatKy_QuyB) cho từng dự án — hiển thị "chi tiết" dự án Active
+function attachRecentLogs(projects) {
+  var nhatKySheet = SpreadsheetApp.openById(CC_SHEET_ID).getSheetByName('NhatKy_QuyB');
+  var nkData = nhatKySheet.getDataRange().getValues();
+  var logsByProject = {};
+
+  if (nkData.length > 1) {
+    var nkHeader = nkData[0];
+    var nkCol = {};
+    nkHeader.forEach(function (h, i) { nkCol[h] = i; });
+
+    for (var i = 1; i < nkData.length; i++) {
+      var row = nkData[i];
+      var pid = row[nkCol.id_du_an];
+      if (!pid) continue;
+      if (!logsByProject[pid]) logsByProject[pid] = [];
+      var ts = row[nkCol.timestamp];
+      logsByProject[pid].push({
+        timestamp: ts ? new Date(ts).toISOString() : null,
+        buoc: row[nkCol.buoc],
+        ghiChu: row[nkCol.ghi_chu_mot_dong]
+      });
+    }
+  }
+
+  projects.forEach(function (p) {
+    var logs = logsByProject[p.id] || [];
+    logs.sort(function (a, b) { return (b.timestamp || '').localeCompare(a.timestamp || ''); });
+    p.recentLog = logs.slice(0, 5);
+  });
+}
+
+// WIP=1: từ chối set Active nếu đã có dự án khác đang Active — im lặng bỏ qua (không có kênh trả lỗi vì POST no-cors)
+function setTrangThaiQuyB(p) {
+  var sheet = SpreadsheetApp.openById(CC_SHEET_ID).getSheetByName('DuAn_QuyB');
+  var data = sheet.getDataRange().getValues();
+  var header = data[0];
+  var idCol = header.indexOf('id');
+  var trangThaiCol = header.indexOf('trang_thai');
+  var capNhatCol = header.indexOf('cap_nhat_cuoi');
+
+  var targetRow = -1;
+  var hasOtherActive = false;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]) === String(p.id)) {
+      targetRow = i;
+    } else if (data[i][trangThaiCol] === 'Active') {
+      hasOtherActive = true;
+    }
+  }
+  if (targetRow === -1) return;
+  if (p.trangThai === 'Active' && hasOtherActive) return;
+
+  sheet.getRange(targetRow + 1, trangThaiCol + 1).setValue(p.trangThai);
+  sheet.getRange(targetRow + 1, capNhatCol + 1).setValue(new Date());
+}
+
+// Ghi 1 dòng NhatKy_QuyB + cập nhật bước hiện tại/cập nhật cuối của dự án
+function ghiTienDoQuyB(p) {
+  var ss = SpreadsheetApp.openById(CC_SHEET_ID);
+  var duAnSheet = ss.getSheetByName('DuAn_QuyB');
+  var nhatKySheet = ss.getSheetByName('NhatKy_QuyB');
+
+  var data = duAnSheet.getDataRange().getValues();
+  var header = data[0];
+  var idCol = header.indexOf('id');
+  var buocCol = header.indexOf('buoc_hien_tai');
+  var capNhatCol = header.indexOf('cap_nhat_cuoi');
+
+  var targetRow = -1;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]) === String(p.id)) { targetRow = i; break; }
+  }
+  if (targetRow === -1) return;
+
+  var buocMoi = Number(p.buoc);
+  if (isNaN(buocMoi)) buocMoi = data[targetRow][buocCol];
+
+  duAnSheet.getRange(targetRow + 1, buocCol + 1).setValue(buocMoi);
+  duAnSheet.getRange(targetRow + 1, capNhatCol + 1).setValue(new Date());
+  nhatKySheet.appendRow([new Date(), p.id, buocMoi, p.ghiChu || '']);
+}
+
 // Gọi CRM Web App từ server (không kèm callback — server-to-server không bị CORS),
 // forward nguyên JSON trả về. doGet của CRM không xác thực token nên chỉ cần đúng action + params.
 function proxyCrm(action, params, crmUrl) {
@@ -269,4 +417,4 @@ function getConfig() {
   return config;
 }
 
-// TODO: doPost (no-cors) — ghi DuAn_QuyB/NhatKy_QuyB/VideoLog_QuyC/KenhStats_QuyC/NghiThuc
+// TODO: doPost — ghi VideoLog_QuyC/KenhStats_QuyC/NghiThuc (Tab Thương hiệu cá nhân + Nghi thức)

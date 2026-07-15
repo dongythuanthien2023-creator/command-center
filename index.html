@@ -95,10 +95,18 @@
   .tab-panel { display: none; flex-direction: column; gap: 12px; }
   .tab-panel.active { display: flex; }
 
-  .insight { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(201,162,75,0.13), rgba(201,162,75,0.02)); border: 1px solid var(--hairline); }
-  .insight svg { flex: none; margin-top: 2px; color: var(--brass); }
+  .insight { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 12px 34px 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(201,162,75,0.13), rgba(201,162,75,0.02)); border: 1px solid var(--hairline); }
+  .insight svg.insight-icon { flex: none; margin-top: 2px; color: var(--brass); }
   .insight .eb { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--brass); margin: 0 0 4px; font-weight: 600; }
   .insight p { margin: 0; font-size: 13.5px; color: var(--ink); line-height: 1.45; }
+  .insight-close {
+    position: absolute; top: 8px; right: 8px; width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    border-radius: 6px; font-size: 15px; line-height: 1; padding: 0;
+  }
+  .insight-close:hover { color: var(--ink); background: var(--surface-2); }
+  .insight-close:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
 
   .card { background: var(--surface); border: 1px solid var(--hairline-soft); border-radius: 16px; padding: 16px 17px 17px; position: relative; }
   .card::before { content: ""; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: linear-gradient(90deg, transparent, var(--brass), transparent); opacity: 0.55; }
@@ -149,6 +157,37 @@
   .row-list li:last-child { border-bottom: none; }
   .row-figs { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
   .row-figs b.viol { color: var(--danger); font-weight: 600; }
+
+  .project-active { background: linear-gradient(160deg, rgba(201,162,75,0.10), transparent 60%), var(--surface); border: 1px solid var(--hairline); }
+  .status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--brass); font-weight: 700; }
+  .status-pill::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--brass); }
+  .status-pill.danger { color: var(--danger); }
+  .status-pill.danger::before { background: var(--danger); }
+  .project-name { font-family: var(--font-display); font-size: 19px; font-weight: 600; margin: 8px 0 4px; }
+  .project-desc { font-size: 12.5px; color: var(--ink-dim); margin-bottom: 12px; }
+  .step-track { display: flex; gap: 4px; margin-bottom: 6px; }
+  .step-track i { flex: 1; height: 5px; border-radius: 3px; background: var(--surface-2); }
+  .step-track i.done { background: var(--brass); }
+  .step-caption { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+  .qb-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .qb-btn { font-family: var(--font-body); font-size: 12.5px; color: var(--ink); background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 9px; padding: 8px 12px; cursor: pointer; }
+  .qb-btn.primary { color: #191408; background: linear-gradient(160deg, #ddc077, var(--brass)); border: none; font-weight: 600; }
+  .qb-btn.ghost { background: none; color: var(--ink-faint); }
+  .qb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .qb-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+  .tiendo-form { display: none; gap: 8px; margin-top: 12px; }
+  .tiendo-form.open { display: flex; }
+  .tiendo-form input {
+    flex: 1; font-family: var(--font-body); font-size: 13px; color: var(--ink);
+    background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 9px; padding: 9px 11px;
+  }
+  .tiendo-form input:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+
+  .queue-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--hairline-soft); font-size: 13px; gap: 10px; }
+  .queue-row:last-child { border-bottom: none; }
+  .queue-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); border: 1px solid var(--hairline); border-radius: 999px; padding: 3px 9px; flex: none; }
 
   .placeholder { color: var(--ink-faint); font-size: 13px; text-align: center; padding: 34px 10px; }
   .loading, .error { text-align: center; padding: 24px 0; color: var(--ink-faint); font-size: 14px; }
@@ -214,7 +253,7 @@
   </section>
 
   <section class="tab-panel" id="panel-b" data-title="Tài sản">
-    <div class="card"><div class="placeholder">Tab Tài sản — sắp triển khai (WIP=1, dự án Quỹ B)</div></div>
+    <div id="tab-b-content" class="loading">Đang tải...</div>
   </section>
 
   <section class="tab-panel" id="panel-c" data-title="Thương hiệu cá nhân">
@@ -269,6 +308,7 @@
   // ── Điều hướng tab ────────────────────────────────────────
   const navButtons = document.querySelectorAll('nav button');
   const panels = { a: 'panel-a', b: 'panel-b', c: 'panel-c', d: 'panel-d' };
+  let tabBLoaded = false;
   navButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       navButtons.forEach((b) => b.classList.remove('active'));
@@ -277,6 +317,11 @@
       const panel = document.getElementById(panels[btn.dataset.tab]);
       panel.classList.add('active');
       document.getElementById('tab-title').textContent = panel.dataset.title;
+
+      if (btn.dataset.tab === 'b' && !tabBLoaded) {
+        tabBLoaded = true;
+        loadTabB();
+      }
     });
   });
 
@@ -299,6 +344,12 @@
     });
   }
 
+  // POST no-cors "bắn và quên" — không đọc được response, phải reload GET sau đó để biết trạng thái thật
+  function postAction(action, params) {
+    const body = new URLSearchParams({ ...params, action, token: CONFIG.token });
+    return fetch(CONFIG.apiUrl, { method: 'POST', mode: 'no-cors', body });
+  }
+
   function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, (c) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -308,6 +359,22 @@
   function formatVndClient(n) {
     return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   }
+
+  // Chỉ dựng banner khi có nội dung — trả '' (ẩn hẳn) nếu không có gì đáng chú ý
+  function renderInsight(text) {
+    if (!text) return '';
+    return `
+      <div class="insight">
+        <svg class="insight-icon" width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2L11.6 8.4L18 10L11.6 11.6L10 18L8.4 11.6L2 10L8.4 8.4L10 2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        <div><p class="eb">Đáng chú ý</p><p>${text}</p></div>
+        <button class="insight-close" type="button" aria-label="Ẩn thông báo">×</button>
+      </div>`;
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.insight-close');
+    if (btn) btn.closest('.insight').remove();
+  });
 
   const ICON_TREND = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M3 13L8 8L11.5 11L17 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="5" r="1.3" fill="currentColor"/></svg>';
   const ICON_BARS = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><rect x="3" y="11" width="3" height="6" rx="0.8" fill="currentColor"/><rect x="8.5" y="7" width="3" height="10" rx="0.8" fill="currentColor"/><rect x="14" y="3" width="3" height="14" rx="0.8" fill="currentColor"/></svg>';
@@ -365,7 +432,7 @@
     if ((t.delta || 0) < 0) {
       return `Lượt hôm nay giảm <strong>${Math.abs(t.delta)}</strong> so hôm qua — đáng theo dõi.`;
     }
-    return `Hôm nay ổn định — <strong>${t.khachMoi ?? 0} khách mới</strong>, không có cảnh báo nào nổi bật.`;
+    return null; // không có gì đặc biệt — ẩn banner, khỏi lặp lại số liệu đã có trong card
   }
 
   // ── Thẻ Ads & ROAS ────────────────────────────────────────
@@ -477,10 +544,7 @@
       </li>`).join('');
 
     return `
-      <div class="insight">
-        <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2L11.6 8.4L18 10L11.6 11.6L10 18L8.4 11.6L2 10L8.4 8.4L10 2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-        <div><p class="eb">Đáng chú ý nhất hôm nay</p><p>${buildInsight(data, ads)}</p></div>
-      </div>
+      ${renderInsight(buildInsight(data, ads))}
 
       <div class="card">
         <div class="card__head">
@@ -625,6 +689,184 @@
   }
 
   loadTabA();
+
+  // ── Tab B — Tài sản (Quỹ B) ──────────────────────────────
+  let tabBData = null;
+
+  function stepTrackHtml(current, total) {
+    if (!total) return '';
+    let html = '';
+    for (let i = 0; i < total; i++) html += `<i class="${i < current ? 'done' : ''}"></i>`;
+    return html;
+  }
+
+  function formatDaysAgo(days) {
+    if (days === null || days === undefined) return 'chưa cập nhật';
+    if (days === 0) return 'cập nhật hôm nay';
+    return `cập nhật ${days} ngày trước`;
+  }
+
+  function formatLogDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm} ${hh}:${mi}`;
+  }
+
+  function renderRecentLog(logs) {
+    if (!logs || logs.length === 0) return '';
+    const rows = logs.map((l) => `
+      <li>
+        <span>${escapeHtml(l.ghiChu || '')}</span>
+        <span class="row-figs">bước ${l.buoc} · ${formatLogDate(l.timestamp)}</span>
+      </li>`).join('');
+    return `
+      <div class="card">
+        <div class="card__head"><p class="card__title">Nhật ký gần đây</p></div>
+        <ul class="row-list">${rows}</ul>
+      </div>`;
+  }
+
+  function renderTabB(data) {
+    const projects = data.projects || [];
+    const active = projects.find((p) => p.trangThai === 'Active');
+    const queued = projects.filter((p) => p.trangThai === 'Xếp hàng');
+    const others = projects.filter((p) => p.trangThai !== 'Active' && p.trangThai !== 'Xếp hàng');
+
+    // Chỉ nói khi có gì khẩn cấp (trì trệ), sắp đến hạn (còn ≤1 ngày), hoặc trạng thái bất thường (chưa có Active)
+    let insightText = null;
+    if (active && active.triTre) {
+      insightText = `<strong>${escapeHtml(active.ten)}</strong> đã ${active.daysSinceUpdate} ngày chưa cập nhật tiến độ — trì trệ.`;
+    } else if (!active) {
+      insightText = `Chưa có dự án Active — bắt đầu 1 dự án từ danh sách Xếp hàng (WIP=1: chỉ 1 dự án Active cùng lúc).`;
+    } else if (data.soNgayTriTre != null && active.daysSinceUpdate != null) {
+      const remain = data.soNgayTriTre - active.daysSinceUpdate;
+      if (remain <= 1) {
+        insightText = `<strong>${escapeHtml(active.ten)}</strong> ${remain <= 0 ? 'đến hạn hôm nay' : 'còn 1 ngày nữa'} là bị đánh dấu trì trệ — nên cập nhật tiến độ.`;
+      }
+    }
+
+    const activeHtml = active ? `
+      <div class="card project-active">
+        <span class="status-pill ${active.triTre ? 'danger' : ''}">${escapeHtml(active.trangThai)}${active.triTre ? ' · Trì trệ' : ''}</span>
+        <p class="project-name">${escapeHtml(active.ten)}</p>
+        ${active.moTa ? `<p class="project-desc">${escapeHtml(active.moTa)}</p>` : ''}
+        <div class="step-track">${stepTrackHtml(active.buocHienTai, active.tongBuoc)}</div>
+        <div class="step-caption"><span>Bước ${active.buocHienTai}/${active.tongBuoc}</span><span>${formatDaysAgo(active.daysSinceUpdate)}</span></div>
+        <div class="qb-actions">
+          <button class="qb-btn primary" data-action="tiendo-toggle" data-id="${escapeHtml(active.id)}" type="button">+ Tiến độ</button>
+          <button class="qb-btn ghost" data-action="complete" data-id="${escapeHtml(active.id)}" type="button">Hoàn thành</button>
+          <button class="qb-btn ghost" data-action="freeze" data-id="${escapeHtml(active.id)}" type="button">Đóng băng</button>
+        </div>
+        <div class="tiendo-form" id="tiendo-form-${escapeHtml(active.id)}">
+          <input type="text" id="tiendo-ghichu-${escapeHtml(active.id)}" placeholder="Ghi chú 1 dòng..." maxlength="120" />
+          <button class="qb-btn primary" data-action="tiendo-submit" data-id="${escapeHtml(active.id)}" type="button">Gửi</button>
+        </div>
+      </div>` : '';
+
+    const queuedHtml = queued.map((p) => `
+      <div class="queue-row">
+        <span>${escapeHtml(p.ten)}</span>
+        <button class="qb-btn" data-action="start" data-id="${escapeHtml(p.id)}" type="button" ${active ? 'disabled' : ''}>Bắt đầu</button>
+      </div>`).join('');
+
+    const othersHtml = others.map((p) => `
+      <div class="queue-row">
+        <span>${escapeHtml(p.ten)}</span>
+        <span class="queue-tag">${escapeHtml(p.trangThai)}</span>
+      </div>`).join('');
+
+    return `
+      ${renderInsight(insightText)}
+      ${activeHtml}
+      ${active ? renderRecentLog(active.recentLog) : ''}
+      ${queued.length > 0 ? `
+      <div class="card">
+        <div class="card__head"><div class="card__title-group">${ICON_BARS}<p class="card__title">Xếp hàng</p></div></div>
+        ${queuedHtml}
+      </div>` : ''}
+      ${others.length > 0 ? `
+      <div class="card">
+        <div class="card__head"><p class="card__title">Khác</p></div>
+        ${othersHtml}
+      </div>` : ''}
+    `;
+  }
+
+  async function loadTabB(opts) {
+    opts = opts || {};
+    const el = document.getElementById('tab-b-content');
+    if (!opts.silent) {
+      el.className = 'loading';
+      el.textContent = 'Đang tải...';
+    }
+    try {
+      const data = await jsonp('getDuAnQuyB', {});
+      if (data.error) {
+        el.className = 'error';
+        el.textContent = 'Lỗi: ' + data.error;
+        return;
+      }
+      tabBData = data;
+      el.className = '';
+      el.innerHTML = renderTabB(data);
+    } catch (err) {
+      el.className = 'error';
+      el.textContent = 'Không tải được dữ liệu: ' + err.message;
+    }
+  }
+
+  document.getElementById('tab-b-content').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+
+    if (action === 'tiendo-toggle') {
+      const form = document.getElementById(`tiendo-form-${id}`);
+      form.classList.toggle('open');
+      if (form.classList.contains('open')) document.getElementById(`tiendo-ghichu-${id}`).focus();
+      return;
+    }
+
+    if (action === 'tiendo-submit') {
+      const input = document.getElementById(`tiendo-ghichu-${id}`);
+      const ghiChu = input.value.trim();
+      if (!ghiChu) { input.focus(); return; }
+      const project = tabBData && tabBData.projects.find((p) => p.id === id);
+      const buocMoi = project ? Math.min(project.buocHienTai + 1, project.tongBuoc || Infinity) : '';
+      btn.disabled = true;
+      btn.textContent = 'Đang gửi...';
+      await postAction('ghiTienDoQuyB', { id, buoc: buocMoi, ghiChu });
+      setTimeout(() => loadTabB({ silent: true }), 800);
+      return;
+    }
+
+    if (action === 'start') {
+      btn.disabled = true;
+      btn.textContent = 'Đang gửi...';
+      await postAction('setTrangThaiQuyB', { id, trangThai: 'Active' });
+      setTimeout(() => loadTabB({ silent: true }), 800);
+      return;
+    }
+
+    if (action === 'complete') {
+      btn.disabled = true;
+      await postAction('setTrangThaiQuyB', { id, trangThai: 'Hoàn thành' });
+      setTimeout(() => loadTabB({ silent: true }), 800);
+      return;
+    }
+
+    if (action === 'freeze') {
+      btn.disabled = true;
+      await postAction('setTrangThaiQuyB', { id, trangThai: 'Đóng băng' });
+      setTimeout(() => loadTabB({ silent: true }), 800);
+      return;
+    }
+  });
 
   // ── Service worker ───────────────────────────────────────
   if ('serviceWorker' in navigator) {
