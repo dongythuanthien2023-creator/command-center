@@ -189,6 +189,40 @@
   .queue-row:last-child { border-bottom: none; }
   .queue-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); border: 1px solid var(--hairline); border-radius: 999px; padding: 3px 9px; flex: none; }
 
+  .streak-card { display: flex; flex-direction: column; align-items: center; padding: 26px 16px 22px; }
+  .ring-wrap { position: relative; width: 132px; height: 132px; }
+  .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-center .num { font-family: var(--font-display); font-size: 36px; font-weight: 600; line-height: 1; color: var(--ink); }
+  .ring-center .unit { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-dim); margin-top: 4px; }
+  .streak-sub { font-size: 12.5px; color: var(--ink-dim); margin-top: 14px; text-align: center; }
+
+  .channel-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--hairline-soft); font-size: 13px; }
+  .channel-row:last-child { border-bottom: none; }
+  .channel-figs { display: flex; align-items: baseline; gap: 7px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .channel-figs .v { font-size: 14px; color: var(--ink); }
+  .channel-figs .d { font-size: 11px; }
+  .channel-figs .d.good { color: var(--ok); }
+  .channel-figs .d.bad { color: var(--danger); }
+
+  .tap-row { display: flex; gap: 8px; margin-top: 4px; }
+  .tap-btn {
+    flex: 1; font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--brass);
+    background: var(--brass-soft); border: 1px solid var(--hairline); border-radius: 10px; padding: 11px 8px; cursor: pointer;
+  }
+  .tap-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .tap-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+  .kenh-form { display: none; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .kenh-form.open { display: flex; }
+  .kenh-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kenh-form input {
+    font-family: var(--font-mono); font-size: 13px; color: var(--ink); background: var(--surface-2);
+    border: 1px solid var(--hairline); border-radius: 9px; padding: 9px 11px; width: 100%;
+  }
+  .kenh-form label { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
+  .kenh-form input:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+
   .placeholder { color: var(--ink-faint); font-size: 13px; text-align: center; padding: 34px 10px; }
   .loading, .error { text-align: center; padding: 24px 0; color: var(--ink-faint); font-size: 14px; }
   .error { color: var(--danger); }
@@ -257,7 +291,7 @@
   </section>
 
   <section class="tab-panel" id="panel-c" data-title="Thương hiệu cá nhân">
-    <div class="card"><div class="placeholder">Tab Thương hiệu cá nhân — sắp triển khai (video/tuần, streak)</div></div>
+    <div id="tab-c-content" class="loading">Đang tải...</div>
   </section>
 
   <section class="tab-panel" id="panel-d" data-title="Nghi thức">
@@ -309,6 +343,7 @@
   const navButtons = document.querySelectorAll('nav button');
   const panels = { a: 'panel-a', b: 'panel-b', c: 'panel-c', d: 'panel-d' };
   let tabBLoaded = false;
+  let tabCLoaded = false;
   navButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       navButtons.forEach((b) => b.classList.remove('active'));
@@ -321,6 +356,10 @@
       if (btn.dataset.tab === 'b' && !tabBLoaded) {
         tabBLoaded = true;
         loadTabB();
+      }
+      if (btn.dataset.tab === 'c' && !tabCLoaded) {
+        tabCLoaded = true;
+        loadTabC();
       }
     });
   });
@@ -864,6 +903,171 @@
       btn.disabled = true;
       await postAction('setTrangThaiQuyB', { id, trangThai: 'Đóng băng' });
       setTimeout(() => loadTabB({ silent: true }), 800);
+      return;
+    }
+  });
+
+  // ── Tab C — Thương hiệu cá nhân (Quỹ C) ──────────────────
+  let tabCData = null;
+
+  function formatRelativeTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm} ${hh}:${mi}`;
+  }
+
+  // Chỉ nói khi streak đang bị đe dọa thật (Thứ 6 trở đi mà chưa đạt chuẩn tuần) — gắn với ngày thực tế
+  function buildInsightQuyC(data) {
+    const cw = data.currentWeek;
+    const remaining = Math.max(0, cw.mucTieu - cw.videoCount);
+    if (remaining === 0) return null;
+    const jsDay = new Date().getDay();
+    const isoDay = jsDay === 0 ? 7 : jsDay;
+    if (isoDay < 5) return null;
+    const daysLeft = 7 - isoDay + 1;
+    return `Còn <strong>${remaining} video</strong> nữa để đạt chuẩn tuần này — chỉ còn ${daysLeft} ngày (hết Chủ nhật).`;
+  }
+
+  function renderTabC(data) {
+    const cw = data.currentWeek;
+    const ringR = 58;
+    const circumference = 2 * Math.PI * ringR;
+    const ringProgress = Math.min(1, cw.mucTieu > 0 ? cw.videoCount / cw.mucTieu : 0);
+    const ringOffset = circumference * (1 - ringProgress);
+
+    const videosHtml = (data.recentVideos || []).map((v) => `
+      <li>
+        <span>${escapeHtml(v.kenh || '')}${v.link ? ` — <a href="${escapeHtml(v.link)}" target="_blank" rel="noopener" style="color:var(--brass)">link</a>` : ''}</span>
+        <span class="row-figs">${formatRelativeTime(v.timestamp)}</span>
+      </li>`).join('');
+
+    const kl = data.kenhLatest;
+    const kp = data.kenhPrev;
+    function deltaFig(cur, prev) {
+      if (!kp) return '';
+      const d = cur - prev;
+      if (d === 0) return '';
+      return `<span class="d ${d > 0 ? 'good' : 'bad'}">${d > 0 ? '+' : ''}${d}</span>`;
+    }
+
+    const kenhStatsHtml = kl ? `
+      <div class="channel-row"><span class="channel-name">TikTok follow</span><span class="channel-figs"><span class="v">${kl.tiktokFollow}</span>${deltaFig(kl.tiktokFollow, kp ? kp.tiktokFollow : 0)}</span></div>
+      <div class="channel-row"><span class="channel-name">FB1 follow</span><span class="channel-figs"><span class="v">${kl.fb1Follow}</span>${deltaFig(kl.fb1Follow, kp ? kp.fb1Follow : 0)}</span></div>
+      <div class="channel-row"><span class="channel-name">FB2 follow</span><span class="channel-figs"><span class="v">${kl.fb2Follow}</span>${deltaFig(kl.fb2Follow, kp ? kp.fb2Follow : 0)}</span></div>
+      <div class="channel-row"><span class="channel-name">Group thành viên</span><span class="channel-figs"><span class="v">${kl.groupThanhVien}</span>${deltaFig(kl.groupThanhVien, kp ? kp.groupThanhVien : 0)}</span></div>
+      <div class="channel-row"><span class="channel-name">Câu hỏi inbound</span><span class="channel-figs"><span class="v">${kl.cauHoiInbound}</span>${deltaFig(kl.cauHoiInbound, kp ? kp.cauHoiInbound : 0)}</span></div>
+    ` : '<div class="placeholder">Chưa có số liệu kênh</div>';
+
+    return `
+      ${renderInsight(buildInsightQuyC(data))}
+
+      <div class="card streak-card">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 132 132">
+            <circle cx="66" cy="66" r="${ringR}" fill="none" stroke="var(--surface-2)" stroke-width="9"/>
+            <circle cx="66" cy="66" r="${ringR}" fill="none" stroke="var(--brass)" stroke-width="9" stroke-linecap="round"
+              stroke-dasharray="${circumference}" stroke-dashoffset="${ringOffset}"/>
+          </svg>
+          <div class="ring-center"><div class="num">${data.streak}</div><div class="unit">Tuần streak</div></div>
+        </div>
+        <p class="streak-sub">${cw.videoCount}/${cw.mucTieu} video tuần này ${cw.dat ? '— đã đạt chuẩn' : ''}</p>
+      </div>
+
+      <div class="card">
+        <div class="card__head"><div class="card__title-group">${ICON_TREND}<p class="card__title">Đánh dấu hôm nay</p></div></div>
+        <div class="tap-row">
+          <button class="tap-btn" data-action="mark-video" data-kenh="TikTok" type="button">TikTok</button>
+          <button class="tap-btn" data-action="mark-video" data-kenh="FB1" type="button">FB1</button>
+          <button class="tap-btn" data-action="mark-video" data-kenh="FB2" type="button">FB2</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__head">
+          <div class="card__title-group">${ICON_BARS}<p class="card__title">Số liệu kênh</p></div>
+          <button class="qb-btn ghost" data-action="kenh-toggle" type="button">Nhập số liệu</button>
+        </div>
+        ${kenhStatsHtml}
+        <div class="kenh-form" id="kenh-form">
+          <div class="kenh-form-row">
+            <div><label>TikTok follow</label><input type="number" id="kenh-tiktok" inputmode="numeric" /></div>
+            <div><label>FB1 follow</label><input type="number" id="kenh-fb1" inputmode="numeric" /></div>
+          </div>
+          <div class="kenh-form-row">
+            <div><label>FB2 follow</label><input type="number" id="kenh-fb2" inputmode="numeric" /></div>
+            <div><label>Group thành viên</label><input type="number" id="kenh-group" inputmode="numeric" /></div>
+          </div>
+          <div class="kenh-form-row">
+            <div><label>Câu hỏi inbound</label><input type="number" id="kenh-inbound" inputmode="numeric" /></div>
+          </div>
+          <button class="qb-btn primary" data-action="kenh-submit" type="button">Gửi</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__head"><p class="card__title">Video gần đây</p></div>
+        <ul class="row-list">${videosHtml || '<li>Chưa có dữ liệu</li>'}</ul>
+      </div>
+    `;
+  }
+
+  async function loadTabC(opts) {
+    opts = opts || {};
+    const el = document.getElementById('tab-c-content');
+    if (!opts.silent) {
+      el.className = 'loading';
+      el.textContent = 'Đang tải...';
+    }
+    try {
+      const data = await jsonp('getQuyC', {});
+      if (data.error) {
+        el.className = 'error';
+        el.textContent = 'Lỗi: ' + data.error;
+        return;
+      }
+      tabCData = data;
+      el.className = '';
+      el.innerHTML = renderTabC(data);
+    } catch (err) {
+      el.className = 'error';
+      el.textContent = 'Không tải được dữ liệu: ' + err.message;
+    }
+  }
+
+  document.getElementById('tab-c-content').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+
+    if (action === 'mark-video') {
+      document.querySelectorAll('.tap-btn').forEach((b) => (b.disabled = true));
+      const original = btn.textContent;
+      btn.textContent = '✓ Đã ghi';
+      await postAction('danhDauVideoQuyC', { kenh: btn.dataset.kenh });
+      setTimeout(() => loadTabC({ silent: true }), 800);
+      return;
+    }
+
+    if (action === 'kenh-toggle') {
+      document.getElementById('kenh-form').classList.toggle('open');
+      return;
+    }
+
+    if (action === 'kenh-submit') {
+      btn.disabled = true;
+      btn.textContent = 'Đang gửi...';
+      await postAction('nhapKenhStatsQuyC', {
+        tiktokFollow: document.getElementById('kenh-tiktok').value || 0,
+        fb1Follow: document.getElementById('kenh-fb1').value || 0,
+        fb2Follow: document.getElementById('kenh-fb2').value || 0,
+        groupThanhVien: document.getElementById('kenh-group').value || 0,
+        cauHoiInbound: document.getElementById('kenh-inbound').value || 0
+      });
+      setTimeout(() => loadTabC({ silent: true }), 800);
       return;
     }
   });

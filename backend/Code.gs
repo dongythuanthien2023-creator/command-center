@@ -22,6 +22,8 @@ function doGet(e) {
     data = computeAdsData(config);
   } else if (action === 'getDuAnQuyB') {
     data = getDuAnQuyBData(config);
+  } else if (action === 'getQuyC') {
+    data = getQuyCData(config);
   } else {
     data = { error: 'Unknown action' };
   }
@@ -42,6 +44,10 @@ function doPost(e) {
     setTrangThaiQuyB(e.parameter);
   } else if (action === 'ghiTienDoQuyB') {
     ghiTienDoQuyB(e.parameter);
+  } else if (action === 'danhDauVideoQuyC') {
+    danhDauVideoQuyC(e.parameter);
+  } else if (action === 'nhapKenhStatsQuyC') {
+    nhapKenhStatsQuyC(e.parameter);
   }
 
   return ContentService.createTextOutput('');
@@ -368,6 +374,134 @@ function ghiTienDoQuyB(p) {
   nhatKySheet.appendRow([new Date(), p.id, buocMoi, p.ghiChu || '']);
 }
 
+// Tuần ISO 8601 dạng "YYYY-Www" (tuần bắt đầu Thứ Hai, tuần chứa ngày 4/1 là tuần 01)
+function getIsoWeekString(date) {
+  var d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  var dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return d.getUTCFullYear() + '-W' + String(weekNo).padStart(2, '0');
+}
+
+// Dịch chuỗi tuần ISO đi ±N tuần — quy về ngày Thứ Năm của tuần đó rồi tính lại
+function addWeeksToIso(isoWeekStr, delta) {
+  var parts = isoWeekStr.split('-W');
+  var year = Number(parts[0]);
+  var week = Number(parts[1]);
+  var simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  var dow = simple.getUTCDay() || 7;
+  var thursday = new Date(simple);
+  thursday.setUTCDate(simple.getUTCDate() - dow + 4 + delta * 7);
+  return getIsoWeekString(thursday);
+}
+
+// Ghi 1 video "1 chạm" — không bắt buộc link, tính sẵn tuần ISO để đếm streak
+function danhDauVideoQuyC(p) {
+  var sheet = SpreadsheetApp.openById(CC_SHEET_ID).getSheetByName('VideoLog_QuyC');
+  var now = new Date();
+  sheet.appendRow([now, p.kenh || '', p.link || '', getIsoWeekString(now)]);
+}
+
+function nhapKenhStatsQuyC(p) {
+  var sheet = SpreadsheetApp.openById(CC_SHEET_ID).getSheetByName('KenhStats_QuyC');
+  var now = new Date();
+  sheet.appendRow([
+    now,
+    Number(p.tiktokFollow) || 0,
+    Number(p.fb1Follow) || 0,
+    Number(p.fb2Follow) || 0,
+    Number(p.groupThanhVien) || 0,
+    Number(p.cauHoiInbound) || 0
+  ]);
+}
+
+// Đếm video/tuần, tính streak (số tuần ĐÃ KẾT THÚC liên tiếp đạt chuẩn, tính lùi từ tuần trước tuần hiện tại),
+// và số liệu kênh gần nhất + chuỗi cho đường tăng trưởng
+function getQuyCData(config) {
+  var ss = SpreadsheetApp.openById(CC_SHEET_ID);
+  var mucTieu = Number(config.muc_tieu_video_tuan) || 3;
+  var now = new Date();
+  var currentWeek = getIsoWeekString(now);
+
+  var videoSheet = ss.getSheetByName('VideoLog_QuyC');
+  var videoData = videoSheet.getDataRange().getValues();
+  var countByWeek = {};
+  var recentVideos = [];
+
+  if (videoData.length > 1) {
+    var vHeader = videoData[0];
+    var vCol = {};
+    vHeader.forEach(function (h, i) { vCol[h] = i; });
+    for (var i = 1; i < videoData.length; i++) {
+      var row = videoData[i];
+      var wk = row[vCol.tuan_iso];
+      if (!wk) continue;
+      countByWeek[wk] = (countByWeek[wk] || 0) + 1;
+      var ts = row[vCol.timestamp];
+      recentVideos.push({
+        timestamp: ts ? new Date(ts).toISOString() : null,
+        kenh: row[vCol.kenh],
+        link: row[vCol.link],
+        tuanIso: wk
+      });
+    }
+  }
+  recentVideos.sort(function (a, b) { return (b.timestamp || '').localeCompare(a.timestamp || ''); });
+  recentVideos = recentVideos.slice(0, 10);
+
+  var currentCount = countByWeek[currentWeek] || 0;
+
+  var streak = 0;
+  var cursor = addWeeksToIso(currentWeek, -1);
+  while (streak < 260) {
+    var c = countByWeek[cursor] || 0;
+    if (c < mucTieu) break;
+    streak++;
+    cursor = addWeeksToIso(cursor, -1);
+  }
+
+  var kenhSheet = ss.getSheetByName('KenhStats_QuyC');
+  var kenhData = kenhSheet.getDataRange().getValues();
+  var kenhRows = [];
+  if (kenhData.length > 1) {
+    var kHeader = kenhData[0];
+    var kCol = {};
+    kHeader.forEach(function (h, i) { kCol[h] = i; });
+    for (var j = 1; j < kenhData.length; j++) {
+      var kr = kenhData[j];
+      if (!kr[kCol.ngay]) continue;
+      var ngayVal = kr[kCol.ngay];
+      kenhRows.push({
+        ngay: ngayVal instanceof Date ? ngayVal.toISOString().slice(0, 10) : String(ngayVal),
+        tiktokFollow: Number(kr[kCol.tiktok_follow]) || 0,
+        fb1Follow: Number(kr[kCol.fb1_follow]) || 0,
+        fb2Follow: Number(kr[kCol.fb2_follow]) || 0,
+        groupThanhVien: Number(kr[kCol.group_thanhvien]) || 0,
+        cauHoiInbound: Number(kr[kCol.cau_hoi_inbound]) || 0
+      });
+    }
+  }
+  kenhRows.sort(function (a, b) { return a.ngay.localeCompare(b.ngay); });
+  var kenhSeries = kenhRows.slice(-8);
+  var kenhLatest = kenhRows.length > 0 ? kenhRows[kenhRows.length - 1] : null;
+  var kenhPrev = kenhRows.length > 1 ? kenhRows[kenhRows.length - 2] : null;
+
+  return {
+    currentWeek: {
+      tuanIso: currentWeek,
+      videoCount: currentCount,
+      mucTieu: mucTieu,
+      dat: currentCount >= mucTieu
+    },
+    streak: streak,
+    recentVideos: recentVideos,
+    kenhLatest: kenhLatest,
+    kenhPrev: kenhPrev,
+    kenhSeries: kenhSeries
+  };
+}
+
 // Gọi CRM Web App từ server (không kèm callback — server-to-server không bị CORS),
 // forward nguyên JSON trả về. doGet của CRM không xác thực token nên chỉ cần đúng action + params.
 function proxyCrm(action, params, crmUrl) {
@@ -417,4 +551,4 @@ function getConfig() {
   return config;
 }
 
-// TODO: doPost — ghi VideoLog_QuyC/KenhStats_QuyC/NghiThuc (Tab Thương hiệu cá nhân + Nghi thức)
+// TODO: doPost — ghi NghiThuc (form #tuanmoi/#dongtuan, phanh tự động giảm tải)
