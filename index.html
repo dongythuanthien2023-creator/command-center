@@ -117,6 +117,14 @@
   .card__icon { width: 13px; height: 13px; color: var(--ink-faint); flex: none; }
   .card__title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-dim); font-weight: 700; margin: 0; }
   .card__meta { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-faint); flex: none; }
+  .card__head-right { display: flex; align-items: center; gap: 8px; flex: none; }
+
+  .ask-btn { flex: none; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid var(--hairline-soft); background: var(--surface-2); color: var(--ink-faint); cursor: pointer; padding: 0; transition: color .15s, border-color .15s; }
+  .ask-btn svg { width: 12px; height: 12px; }
+  .ask-btn:hover { color: var(--brass); border-color: var(--hairline); }
+  .ask-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+  .ask-btn.copied { color: var(--ok); border-color: var(--ok); }
+  .ask-btn--corner { position: absolute; top: 14px; right: 15px; }
 
   .hero-figure { font-family: var(--font-display); font-size: 34px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; margin: 0; color: var(--ink); }
   .delta { font-family: var(--font-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; margin: 4px 0 0; }
@@ -461,6 +469,43 @@
   const ICON_TRIANGLE = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M10 3L18 16H2L10 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 8.5V12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10" cy="14.2" r="0.9" fill="currentColor"/></svg>';
   const ICON_FLAG = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M5 17V3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 4H15L12.5 7.5L15 11H5" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
   const ICON_GRID = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="11" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="11" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>';
+  const ICON_ASK = '<svg viewBox="0 0 20 20" fill="none"><path d="M10 2L11.6 8.4L18 10L11.6 11.6L10 18L8.4 11.6L2 10L8.4 8.4L10 2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+
+  // Nút "Hỏi Claude" (SPEC mục 6) — copy sẵn 1 đoạn prompt kèm số liệu hiện tại của khối để dán vào Claude app.
+  // Không gọi API Claude trong v1. Prompt mã hoá qua encodeURIComponent trong data-prompt để tránh vỡ HTML
+  // với ký tự đặc biệt/dấu tiếng Việt, tránh phải quản lý mảng/chỉ số riêng.
+  function askBtn(promptText, extraClass) {
+    return `<button type="button" class="ask-btn${extraClass ? ' ' + extraClass : ''}" data-prompt="${encodeURIComponent(promptText)}" aria-label="Hỏi Claude" title="Hỏi Claude — copy số liệu">${ICON_ASK}</button>`;
+  }
+
+  function fallbackCopyText(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (err) {}
+    document.body.removeChild(ta);
+  }
+
+  function copyAskPrompt(text, btn) {
+    const done = () => {
+      btn.classList.add('copied');
+      setTimeout(() => btn.classList.remove('copied'), 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => { fallbackCopyText(text); done(); });
+    } else {
+      fallbackCopyText(text);
+      done();
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const askButton = e.target.closest('.ask-btn');
+    if (askButton) copyAskPrompt(decodeURIComponent(askButton.dataset.prompt), askButton);
+  });
 
   // ── Sparkline dùng chung ─────────────────────────────────
   function drawSparkline(svgId, values) {
@@ -564,11 +609,22 @@
         <div class="placeholder">${ads.unclassified.map(escapeHtml).join(', ')} — cần bổ sung pattern nhóm trong CLAUDE.md</div>
       </div>` : '';
 
+    const promptChiPhi = `Ads ngày ${ads.adsDate}: chi phí ${formatVndClient(t.chiPhi)}đ${deltaChiPhi === null ? ' (chưa đủ dữ liệu MA7)' : `, ${deltaChiPhi >= 0 ? 'tăng' : 'giảm'} ${Math.abs(Math.round(deltaChiPhi))}% so MA7 (${formatVndClient(ads.ma7.chiPhi)}đ)`}. CPM ${t.cpm !== null ? formatVndClient(t.cpm) + 'đ' : 'chưa có'}, CTR ${t.ctr !== null ? t.ctr.toFixed(2) + '%' : 'chưa có'}, CPC ${t.cpc !== null ? formatVndClient(t.cpc) + 'đ' : 'chưa có'}. Đánh giá hiệu suất Ads hôm nay giúp tôi.`;
+
+    const promptBench = 'Benchmark CPC theo nhóm so MA7: ' + groupOrder.map((name) => {
+      const g = ads.groups[name];
+      if (!g || g.todayCpc === null) return `${name}: không chạy`;
+      if (!g.eligible) return `${name}: ${g.activeDays}/5 ngày (chưa đủ dữ liệu)`;
+      return `${name}: ${formatVndClient(g.todayCpc)}đ (${g.deltaPct >= 0 ? '+' : ''}${Math.round(g.deltaPct)}% so MA7)`;
+    }).join('; ') + '. Nhóm nào đang có vấn đề, nên ưu tiên kiểm tra gì?';
+
+    const promptBudget = `Ngân sách Ads tháng: đã chi ${formatVndClient(budget.monthSpend)}đ / mục tiêu ${formatVndClient(budget.monthPaceTarget)}đ sau ${budget.monthDaysRun} ngày chạy (${formatVndClient(budget.chiPhiNgayFull)}đ/ngày full). Có đang lệch nhịp không?`;
+
     return `
       <div class="card">
         <div class="card__head">
           <div class="card__title-group">${ICON_TREND}<p class="card__title">Chi phí Ads hôm qua</p></div>
-          <span class="card__meta">${escapeHtml(ads.adsDate)}</span>
+          <div class="card__head-right"><span class="card__meta">${escapeHtml(ads.adsDate)}</span>${askBtn(promptChiPhi)}</div>
         </div>
         <p class="hero-figure">${formatVndClient(t.chiPhi)} đ</p>
         <p class="delta ${heroClass}">${deltaChiPhi === null ? 'Chưa đủ dữ liệu MA7' : `${deltaChiPhi >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(deltaChiPhi))}% so MA7 (${formatVndClient(ads.ma7.chiPhi)}đ)`}</p>
@@ -583,7 +639,7 @@
       <div class="card">
         <div class="card__head">
           <div class="card__title-group">${ICON_BARS}<p class="card__title">Benchmark theo nhóm</p></div>
-          <span class="card__meta">CPC vs MA7</span>
+          <div class="card__head-right"><span class="card__meta">CPC vs MA7</span>${askBtn(promptBench)}</div>
         </div>
         ${benchHtml}
       </div>
@@ -591,7 +647,7 @@
       <div class="card">
         <div class="card__head">
           <div class="card__title-group">${ICON_GAUGE}<p class="card__title">Nhịp ngân sách tháng</p></div>
-          <span class="card__meta">${budget.monthDaysRun} ngày chạy</span>
+          <div class="card__head-right"><span class="card__meta">${budget.monthDaysRun} ngày chạy</span>${askBtn(promptBudget)}</div>
         </div>
         <div class="progress-track"><div class="progress-fill" style="width:${budgetPct}%"></div></div>
         <div class="progress-labels"><span>${formatVndClient(budget.monthSpend)}đ đã chi</span><span>${formatVndClient(budget.monthPaceTarget)}đ mục tiêu</span></div>
@@ -624,6 +680,12 @@
         <span class="row-figs">${s.khachMoi} khách mới · ${s.quaHan} quá hạn · ${s.viPham > 0 ? `<b class="viol">${s.viPham} vi phạm</b>` : '0 vi phạm'}</span>
       </li>`).join('');
 
+    const promptKhachMoi = `Số liệu CRM hôm nay (${data.generatedAt || ''}): ${t.khachMoi ?? '–'} khách mới (${deltaSign}${t.delta ?? 0} so hôm qua), ${t.clickQC ?? '–'} click lại QC, ${t.tongLuot ?? '–'} tổng lượt, ${t.uniqueQC ?? '–'} unique QC. Có gì đáng chú ý không?`;
+    const promptQuaHan = `CRM có ${data.totalOverdue ?? 0} liên hệ quá hạn và ${data.totalViPham ?? 0} vi phạm SLA. Nên ưu tiên xử lý thế nào?`;
+    const promptFunnel = 'Phễu giai đoạn CRM: ' + (data.funnel || []).map((f) => `${f.stage} ${f.count}`).join(', ') + '. Tỷ lệ chuyển đổi giữa các giai đoạn có gì bất thường không?';
+    const promptSources = `Nguồn lead hôm nay (${(data.sources && data.sources.scope) || ''}): ` + ((data.sources && data.sources.items) || []).map((s) => `${s.name} ${s.count}`).join(', ') + '. Nguồn nào đang hiệu quả nhất?';
+    const promptSales = 'Hoạt động Sales: ' + (data.sales || []).map((s) => `${s.name}: ${s.khachMoi} khách mới, ${s.quaHan} quá hạn, ${s.viPham} vi phạm`).join('; ') + '. Ai đang cần hỗ trợ?';
+
     return `
       ${renderInsight(buildInsight(data, ads))}
 
@@ -633,7 +695,7 @@
             <svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M2 10H6L8 4L12 16L14 10H18" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <p class="card__title">Khách mới hôm nay</p>
           </div>
-          <span class="card__meta">${escapeHtml(data.generatedAt || '')}</span>
+          <div class="card__head-right"><span class="card__meta">${escapeHtml(data.generatedAt || '')}</span>${askBtn(promptKhachMoi)}</div>
         </div>
         <p class="hero-figure">${t.khachMoi ?? '–'}</p>
         <p class="delta ${deltaClass}">${deltaSign}${t.delta ?? 0} so hôm qua</p>
@@ -651,6 +713,7 @@
             <svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M10 3L18 16H2L10 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 8.5V12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10" cy="14.2" r="0.9" fill="currentColor"/></svg>
             <p class="card__title">Quá hạn &amp; vi phạm SLA</p>
           </div>
+          ${askBtn(promptQuaHan)}
         </div>
         <div class="stat-row" style="margin-top:0">
           <div class="stat-mini" style="border-left:none; padding-left:0"><div class="v">${data.totalOverdue ?? '–'}</div><div class="l">Quá hạn liên hệ</div></div>
@@ -664,6 +727,7 @@
             <svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M3 4H17L12 11V16L8 14V11L3 4Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
             <p class="card__title">Phễu giai đoạn</p>
           </div>
+          ${askBtn(promptFunnel)}
         </div>
         ${funnelHtml || '<div class="placeholder">Chưa có dữ liệu</div>'}
       </div>
@@ -674,6 +738,7 @@
             <svg class="card__icon" viewBox="0 0 20 20" fill="none"><rect x="3" y="11" width="3" height="6" rx="0.8" fill="currentColor"/><rect x="8.5" y="7" width="3" height="10" rx="0.8" fill="currentColor"/><rect x="14" y="3" width="3" height="14" rx="0.8" fill="currentColor"/></svg>
             <p class="card__title">Nguồn lead (${escapeHtml((data.sources && data.sources.scope) || '')})</p>
           </div>
+          ${askBtn(promptSources)}
         </div>
         <ul class="row-list">${sourcesHtml || '<li>Chưa có dữ liệu</li>'}</ul>
       </div>
@@ -684,6 +749,7 @@
             <svg class="card__icon" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="8" r="2.6" stroke="currentColor" stroke-width="1.4"/><circle cx="14" cy="10" r="2" stroke="currentColor" stroke-width="1.4"/><path d="M2.5 16C3 12.8 4.7 11.2 7 11.2C9.3 11.2 11 12.8 11.5 16" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12.3 16C12.7 13.6 13.7 12.4 15.3 12.4C16.4 12.4 17.2 13 17.6 14.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
             <p class="card__title">Hoạt động Sales</p>
           </div>
+          ${askBtn(promptSales)}
         </div>
         <ul class="row-list">${salesHtml || '<li>Chưa có dữ liệu</li>'}</ul>
       </div>
@@ -830,8 +896,11 @@
       }
     }
 
+    const promptActive = active ? `Dự án Quỹ B đang Active: "${active.ten}" — bước ${active.buocHienTai}/${active.tongBuoc}, ${formatDaysAgo(active.daysSinceUpdate)}${active.triTre ? ', ĐANG TRÌ TRỆ' : ''}. Gợi ý bước tiếp theo nên làm gì?` : '';
+
     const activeHtml = active ? `
       <div class="card project-active">
+        ${askBtn(promptActive, 'ask-btn--corner')}
         <span class="status-pill ${active.triTre ? 'danger' : ''}">${escapeHtml(active.trangThai)}${active.triTre ? ' · Trì trệ' : ''}</span>
         <p class="project-name">${escapeHtml(active.ten)}</p>
         ${active.moTa ? `<p class="project-desc">${escapeHtml(active.moTa)}</p>` : ''}
@@ -1004,10 +1073,14 @@
       <div class="channel-row"><span class="channel-name">Câu hỏi inbound</span><span class="channel-figs"><span class="v">${kl.cauHoiInbound}</span>${deltaFig(kl.cauHoiInbound, kp ? kp.cauHoiInbound : 0)}</span></div>
     ` : '<div class="placeholder">Chưa có số liệu kênh</div>';
 
+    const promptStreak = `Thương hiệu cá nhân: streak ${data.streak} tuần liên tiếp đạt chuẩn, tuần này ${cw.videoCount}/${cw.mucTieu} video${cw.dat ? ' — đã đạt chuẩn' : ''}. Có nên điều chỉnh mục tiêu không?`;
+    const promptKenh = kl ? `Số liệu kênh mới nhất (${kl.ngay}): TikTok ${kl.tiktokFollow} follow, FB1 ${kl.fb1Follow}, FB2 ${kl.fb2Follow}, Group ${kl.groupThanhVien} thành viên, ${kl.cauHoiInbound} câu hỏi inbound. Kênh nào đang tăng trưởng tốt nhất?` : '';
+
     return `
       ${renderInsight(buildInsightQuyC(data))}
 
       <div class="card streak-card">
+        ${askBtn(promptStreak, 'ask-btn--corner')}
         <div class="ring-wrap">
           <svg viewBox="0 0 132 132">
             <circle cx="66" cy="66" r="${ringR}" fill="none" stroke="var(--surface-2)" stroke-width="9"/>
@@ -1031,7 +1104,7 @@
       <div class="card">
         <div class="card__head">
           <div class="card__title-group">${ICON_BARS}<p class="card__title">Số liệu kênh</p></div>
-          <button class="qb-btn ghost" data-action="kenh-toggle" type="button">Nhập số liệu</button>
+          <div class="card__head-right">${kl ? askBtn(promptKenh) : ''}<button class="qb-btn ghost" data-action="kenh-toggle" type="button">Nhập số liệu</button></div>
         </div>
         ${kenhStatsHtml}
         <div class="kenh-form" id="kenh-form">
@@ -1168,9 +1241,10 @@
   function renderTuanMoiCard(data) {
     if (data.tuanMoiDoneThisWeek && data.lastTuanMoi) {
       const lt = data.lastTuanMoi;
+      const promptTuanMoi = `#tuanmoi tuần ${data.currentWeek}: Ưu tiên A "${lt.uuTienA || ''}", B "${lt.uuTienB || ''}", C "${lt.uuTienC || ''}". Nên tiếp cận thứ tự nào trước?`;
       return `
         <div class="card">
-          <div class="card__head"><div class="card__title-group">${ICON_FLAG}<p class="card__title">#tuanmoi — đã nộp tuần này</p></div></div>
+          <div class="card__head"><div class="card__title-group">${ICON_FLAG}<p class="card__title">#tuanmoi — đã nộp tuần này</p></div>${askBtn(promptTuanMoi)}</div>
           <div class="priority-item"><span class="priority-letter">A</span><span>${escapeHtml(lt.uuTienA || '—')}</span></div>
           <div class="priority-item"><span class="priority-letter">B</span><span>${escapeHtml(lt.uuTienB || '—')}</span></div>
           <div class="priority-item"><span class="priority-letter">C</span><span>${escapeHtml(lt.uuTienC || '—')}</span></div>
@@ -1192,9 +1266,10 @@
   function renderDongTuanCard(data) {
     if (data.dongTuanDoneThisWeek && data.lastDongTuan) {
       const ld = data.lastDongTuan;
+      const promptDongTuan = `#dongtuan tuần ${data.currentWeek}: ${ld.video} video, ${ld.quyBCapNhat} lần cập nhật Quỹ B, ${ld.viecMiss} việc miss, năng lượng ${ld.nangLuong}/10. Đánh giá tuần này thế nào?`;
       return `
         <div class="card">
-          <div class="card__head"><div class="card__title-group">${ICON_GRID}<p class="card__title">#dongtuan — đã nộp tuần này</p></div></div>
+          <div class="card__head"><div class="card__title-group">${ICON_GRID}<p class="card__title">#dongtuan — đã nộp tuần này</p></div>${askBtn(promptDongTuan)}</div>
           <div class="dongtuan-grid">
             <div class="dongtuan-cell"><div class="v">${ld.video}</div><div class="l">Video</div></div>
             <div class="dongtuan-cell"><div class="v">${ld.quyBCapNhat}</div><div class="l">Lần cập nhật Quỹ B</div></div>
@@ -1228,9 +1303,10 @@
           <div class="placeholder">Chưa có dữ liệu — nộp #dongtuan để bắt đầu theo dõi</div>
         </div>`;
     }
+    const promptEnergy = 'Năng lượng theo tuần gần đây: ' + data.energySeries.map((s) => `${s.week}: ${s.nangLuong}/10`).join(', ') + '. Xu hướng năng lượng đang thế nào, có cần điều chỉnh nhịp độ không?';
     return `
       <div class="card">
-        <div class="card__head"><p class="card__title">Năng lượng theo tuần</p></div>
+        <div class="card__head"><p class="card__title">Năng lượng theo tuần</p>${askBtn(promptEnergy)}</div>
         <div class="energy-wrap"><svg id="energy-chart" viewBox="0 0 280 100" preserveAspectRatio="none"></svg></div>
       </div>`;
   }

@@ -63,7 +63,7 @@ Nút "Hỏi Claude" mỗi khối: copy sẵn prompt kèm số liệu hiện tạ
 - `VideoLog_QuyC`: timestamp, kenh, link, tuan_iso
 - `KenhStats_QuyC`: ngay, tiktok_follow, fb1_follow, fb2_follow, group_thanhvien, cau_hoi_inbound
 - `NghiThuc`: tuan_iso, loai, uu_tien_A, uu_tien_B, uu_tien_C, video_dat, quyB_capnhat, viec_miss, nang_luong, timestamp
-- `CaiDat`: khoa, gia_tri — gồm: token_api (bảo vệ endpoint), telegram_bot_token, telegram_chat_id, ngan_sach_thang, chi_phi_ngay_full (1000000), nguong_ngay_don (1200000), so_ngay_tri_tre (4), muc_tieu_video_tuan (3), ads_sheet_id, crm_sheet_id, crm_webapp_url
+- `CaiDat`: khoa, gia_tri — gồm: token_api (bảo vệ endpoint), telegram_bot_token, telegram_chat_id, ngan_sach_thang, chi_phi_ngay_full (1000000), nguong_ngay_don (1200000), so_ngay_tri_tre (4), muc_tieu_video_tuan (3), nguong_qua_han (10 — số liên hệ quá hạn cùng lúc để bot cảnh báo), ads_sheet_id, crm_sheet_id, crm_webapp_url
 
 ## 8. Lộ trình
 - Ngày 1–2: repo + Sheet CC + khảo sát tab bằng code + vá còn lại

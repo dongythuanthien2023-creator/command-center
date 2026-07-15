@@ -734,6 +734,136 @@ function proxyCrm(action, params, crmUrl) {
   }
 }
 
+// ── Telegram — nhắc lịch (CLAUDE.md mục "Nhắc nhở") ────────────────────────
+// Trigger cài qua setupTriggers() (setup.gs, chạy tay 1 lần). Token/chat_id CHỈ đọc từ CaiDat,
+// không hardcode (CLAUDE.md — bảo mật). Không dùng parse_mode để khỏi phải escape ký tự đặc biệt
+// trong tên dự án/nhóm campaign do người dùng đặt.
+function sendTelegram(text) {
+  var config = getConfig();
+  var token = config.telegram_bot_token;
+  var chatId = config.telegram_chat_id;
+  if (!token || !chatId) {
+    Logger.log('Chưa cấu hình telegram_bot_token/telegram_chat_id trong CaiDat — bỏ qua gửi: ' + text);
+    return;
+  }
+  // Gửi qua query string thay vì payload object — tránh phụ thuộc cách UrlFetchApp tự đóng gói
+  // multipart/form-urlencoded cho payload dạng object (từng gây "chat not found" dù token/chat_id đúng).
+  var url = 'https://api.telegram.org/bot' + token + '/sendMessage'
+    + '?chat_id=' + encodeURIComponent(chatId)
+    + '&text=' + encodeURIComponent(text);
+  var res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  if (res.getResponseCode() !== 200) {
+    Logger.log('Telegram lỗi ' + res.getResponseCode() + ': ' + res.getContentText());
+  }
+}
+
+function formatDateKey(date) {
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+// Gửi tối đa 1 lần/ngày cho mỗi khóa cảnh báo — chống spam khi checkEventAlerts chạy mỗi giờ
+// mà điều kiện vẫn còn đúng suốt cả ngày (vd dự án vẫn trì trệ ở lần kiểm tra kế tiếp).
+function alertOnce(key, text) {
+  var props = PropertiesService.getScriptProperties();
+  var fullKey = 'alert_' + key + '_' + formatDateKey(new Date());
+  if (props.getProperty(fullKey)) return;
+  sendTelegram(text);
+  props.setProperty(fullKey, '1');
+}
+
+// 08:00 hằng ngày — tóm tắt Ads hôm qua + cảnh báo + trạng thái dự án Quỹ B Active
+function sendMorningSummary() {
+  var config = getConfig();
+  var ads = computeAdsData(config);
+  var duAn = getDuAnQuyBData(config);
+
+  var lines = ['☀️ Tóm tắt sáng'];
+  if (ads.error) {
+    lines.push('Ads: ' + ads.error);
+  } else {
+    lines.push('Ads ' + ads.adsDate + ': ' + formatVnd(ads.today.chiPhi) + 'đ · CPC ' +
+      (ads.today.cpc !== null ? formatVnd(ads.today.cpc) + 'đ' : '–') + ' · CTR ' +
+      (ads.today.ctr !== null ? ads.today.ctr.toFixed(2) + '%' : '–'));
+    if (ads.warnings && ads.warnings.length > 0) {
+      lines.push('⚠️ ' + ads.warnings.join(' | '));
+    }
+  }
+
+  var active = duAn.projects.filter(function (p) { return p.trangThai === 'Active'; })[0];
+  if (active) {
+    lines.push('Quỹ B Active: ' + active.ten + ' (bước ' + active.buocHienTai + '/' + active.tongBuoc + ')' +
+      (active.triTre ? ' — TRÌ TRỆ ' + active.daysSinceUpdate + ' ngày' : ''));
+  } else {
+    lines.push('Quỹ B: không có dự án Active');
+  }
+
+  sendTelegram(lines.join('\n'));
+}
+
+// 19:00 hằng ngày — nhắc phiên content + hỏi tiến độ Quỹ B
+function sendEveningReminder() {
+  sendTelegram('🌙 19:00 — phiên content hôm nay đã xong chưa? Quỹ B hôm nay tiến được gì? Mở app ghi lại nhé.');
+}
+
+// Thứ Hai 08:30 — nhắc #tuanmoi + số liệu #dongtuan tuần trước để tham chiếu
+function sendTuanMoiReminder() {
+  var config = getConfig();
+  var nghiThuc = getNghiThucData(config);
+  var lines = ['🗓️ Thứ Hai — nộp #tuanmoi (3 ưu tiên A/B/C tuần này).'];
+  if (nghiThuc.lastDongTuan) {
+    var lt = nghiThuc.lastDongTuan;
+    lines.push('Tuần trước: ' + lt.video + ' video · ' + lt.quyBCapNhat + ' lần cập nhật Quỹ B · ' +
+      lt.viecMiss + ' việc miss · năng lượng ' + lt.nangLuong + '/10.');
+  }
+  sendTelegram(lines.join('\n'));
+}
+
+// Thứ Sáu 20:00 — nhắc #dongtuan
+function sendDongTuanReminder() {
+  sendTelegram('🗓️ Thứ Sáu — nộp #dongtuan (video, lần cập nhật Quỹ B, việc miss, năng lượng 1–10).');
+}
+
+// Chủ Nhật 20:00 — nhắc nhập số liệu kênh Quỹ C
+function sendKenhStatsReminder() {
+  sendTelegram('📊 Chủ Nhật — nhập số liệu kênh Quỹ C (follow TikTok/FB1/FB2, group, câu hỏi inbound).');
+}
+
+// Theo sự kiện (chạy mỗi giờ qua trigger): CPC lệch nhóm ≥20% so MA7 (ngưỡng đồng bộ với UI —
+// index.html buildInsight), dự án Active trì trệ > so_ngay_tri_tre ngày, CRM quá hạn > nguong_qua_han,
+// vi phạm SLA > 0. Mỗi điều kiện tối đa 1 tin/ngày (alertOnce).
+function checkEventAlerts() {
+  var config = getConfig();
+
+  var ads = computeAdsData(config);
+  if (!ads.error) {
+    Object.keys(ads.groups).forEach(function (name) {
+      var g = ads.groups[name];
+      if (g.eligible && g.deltaPct !== null && Math.abs(g.deltaPct) >= 20) {
+        var dir = g.deltaPct > 0 ? 'tăng' : 'giảm';
+        alertOnce('cpc_' + name, '📈 CPC nhóm ' + name + ' ' + dir + ' ' + Math.abs(Math.round(g.deltaPct)) + '% so MA7.');
+      }
+    });
+  }
+
+  var duAn = getDuAnQuyBData(config);
+  duAn.projects.forEach(function (p) {
+    if (p.triTre) {
+      alertOnce('trice_' + p.id, '🧊 Dự án "' + p.ten + '" trì trệ ' + p.daysSinceUpdate + ' ngày (chưa cập nhật).');
+    }
+  });
+
+  var crm = proxyCrm('getDashboardData', {}, config.crm_webapp_url);
+  if (crm && !crm.error) {
+    var nguongQuaHan = Number(config.nguong_qua_han) || 10;
+    if (Number(crm.totalOverdue) > nguongQuaHan) {
+      alertOnce('quahan', '⏰ CRM có ' + crm.totalOverdue + ' liên hệ quá hạn (ngưỡng ' + nguongQuaHan + ').');
+    }
+    if (Number(crm.totalViPham) > 0) {
+      alertOnce('vipham', '🚨 CRM có ' + crm.totalViPham + ' vi phạm SLA đang chờ xử lý.');
+    }
+  }
+}
+
 function respond(data, callback) {
   if (callback) {
     return ContentService

@@ -24,6 +24,7 @@ var CAIDAT_DEFAULTS = [
   ['nguong_ngay_don', 1200000],
   ['so_ngay_tri_tre', 4],
   ['muc_tieu_video_tuan', 3],
+  ['nguong_qua_han', 10],
   ['ads_sheet_id', ADS_SHEET_ID],
   ['crm_sheet_id', CRM_SHEET_ID],
   ['crm_webapp_url', '']
@@ -96,6 +97,26 @@ function seedDuAnQuyB(sheet) {
   if (toAppend.length > 0) {
     sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, 8).setValues(toAppend);
   }
+}
+
+// Cài 6 trigger nhắc lịch Telegram (CLAUDE.md mục "Nhắc nhở") — chạy TAY 1 lần từ Apps Script editor
+// sau khi đã điền telegram_bot_token/telegram_chat_id vào CaiDat. An toàn chạy lại nhiều lần (xóa trigger
+// cũ cùng tên trước khi tạo lại) nếu cần đổi giờ. Giờ chạy theo múi giờ script — kiểm tra
+// Project Settings → múi giờ = Asia/Ho_Chi_Minh trước khi tin giờ trigger nổ đúng.
+function setupTriggers() {
+  var handlers = ['sendMorningSummary', 'sendEveningReminder', 'sendTuanMoiReminder', 'sendDongTuanReminder', 'sendKenhStatsReminder', 'checkEventAlerts'];
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (handlers.indexOf(t.getHandlerFunction()) !== -1) ScriptApp.deleteTrigger(t);
+  });
+
+  ScriptApp.newTrigger('sendMorningSummary').timeBased().atHour(8).nearMinute(0).everyDays(1).create();
+  ScriptApp.newTrigger('sendEveningReminder').timeBased().atHour(19).nearMinute(0).everyDays(1).create();
+  ScriptApp.newTrigger('sendTuanMoiReminder').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).nearMinute(30).create();
+  ScriptApp.newTrigger('sendDongTuanReminder').timeBased().onWeekDay(ScriptApp.WeekDay.FRIDAY).atHour(20).nearMinute(0).create();
+  ScriptApp.newTrigger('sendKenhStatsReminder').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(20).nearMinute(0).create();
+  ScriptApp.newTrigger('checkEventAlerts').timeBased().everyHours(1).create();
+
+  Logger.log('Đã cài ' + handlers.length + ' trigger nhắc lịch Telegram.');
 }
 
 function khaoSat() {
