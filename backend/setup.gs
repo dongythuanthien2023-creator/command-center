@@ -78,6 +78,37 @@ function khaoSat() {
   logSheetSample(crm, 'Lịch sử liên hệ', 3);
 }
 
+// Khảo sát Sheet Ads: cấu trúc cột thật + tên campaign thật (để đối chiếu pattern phân nhóm trong CLAUDE.md)
+function khaoSatAds() {
+  var ss = SpreadsheetApp.openById(ADS_SHEET_ID);
+  var sheet = ss.getSheets()[0];
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  Logger.log('--- Sheet Ads: "' + sheet.getName() + '" (' + lastRow + ' dòng x ' + lastCol + ' cột) ---');
+
+  var headRows = Math.min(3, lastRow);
+  sheet.getRange(1, 1, headRows, lastCol).getValues().forEach(function (row, i) {
+    Logger.log('Đầu — dòng ' + (i + 1) + ': ' + JSON.stringify(row));
+  });
+
+  var tailCount = Math.min(15, Math.max(0, lastRow - 1));
+  if (tailCount > 0) {
+    var startRow = lastRow - tailCount + 1;
+    sheet.getRange(startRow, 1, tailCount, lastCol).getValues().forEach(function (row, i) {
+      Logger.log('Cuối — dòng ' + (startRow + i) + ': ' + JSON.stringify(row));
+    });
+  }
+
+  if (lastRow > 1) {
+    var campaignValues = sheet.getRange(2, 2, lastRow - 1, 1).getValues();
+    var distinct = {};
+    campaignValues.forEach(function (row) { distinct[row[0]] = true; });
+    var names = Object.keys(distinct);
+    Logger.log('--- Campaign duy nhất (' + names.length + ') ---');
+    names.forEach(function (name) { Logger.log('· ' + name); });
+  }
+}
+
 function logSheetSample(ss, sheetName, numRows) {
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) {

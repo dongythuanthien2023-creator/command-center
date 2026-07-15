@@ -130,6 +130,20 @@
   .funnel-track { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
   .funnel-fill { height: 100%; background: linear-gradient(90deg, rgba(201,162,75,0.55), var(--brass)); border-radius: 4px; }
 
+  .bench-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--hairline-soft); font-size: 13px; gap: 10px; }
+  .bench-row:last-child { border-bottom: none; }
+  .bench-name { color: var(--ink); flex: none; }
+  .bench-vals { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .bench-vals .cpc { color: var(--ink); font-size: 12.5px; width: 56px; text-align: right; }
+  .bench-vals .pct { font-size: 11.5px; width: 40px; text-align: right; }
+  .divbar { position: relative; width: 48px; height: 14px; flex: none; }
+  .divbar .mid { position: absolute; left: 50%; top: 1px; bottom: 1px; width: 1px; background: var(--hairline); }
+  .divbar .fill { position: absolute; top: 5px; height: 4px; border-radius: 2px; }
+
+  .progress-track { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 10px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--brass), #e2c37a); border-radius: 999px; }
+  .progress-labels { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); margin-top: 6px; font-variant-numeric: tabular-nums; }
+
   .row-list { list-style: none; margin: 0; padding: 0; }
   .row-list li { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--hairline-soft); font-size: 13px; }
   .row-list li:last-child { border-bottom: none; }
@@ -186,6 +200,14 @@
       <div class="status-tile st-pending" id="tile-overdue">
         <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.4"/><path d="M10 6V10L13 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
         <div class="tt"><div class="l">Quá hạn LH</div><div class="v">—</div></div>
+      </div>
+      <div class="status-tile st-pending" id="tile-budget">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M3 14A7 7 0 0 1 17 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10 14L13.2 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10" cy="14" r="1.1" fill="currentColor"/></svg>
+        <div class="tt"><div class="l">Ngân sách hôm qua</div><div class="v">—</div></div>
+      </div>
+      <div class="status-tile st-pending" id="tile-benchmark">
+        <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="11" width="3" height="6" rx="0.8" fill="currentColor"/><rect x="8.5" y="7" width="3" height="10" rx="0.8" fill="currentColor"/><rect x="14" y="3" width="3" height="14" rx="0.8" fill="currentColor"/></svg>
+        <div class="tt"><div class="l">Benchmark nhóm</div><div class="v">—</div></div>
       </div>
     </div>
     <div id="tab-a-content" class="loading">Đang tải...</div>
@@ -283,6 +305,15 @@
     }[c]));
   }
 
+  function formatVndClient(n) {
+    return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  const ICON_TREND = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M3 13L8 8L11.5 11L17 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="5" r="1.3" fill="currentColor"/></svg>';
+  const ICON_BARS = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><rect x="3" y="11" width="3" height="6" rx="0.8" fill="currentColor"/><rect x="8.5" y="7" width="3" height="10" rx="0.8" fill="currentColor"/><rect x="14" y="3" width="3" height="14" rx="0.8" fill="currentColor"/></svg>';
+  const ICON_GAUGE = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M3 14A7 7 0 0 1 17 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10 14L13.2 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10" cy="14" r="1.1" fill="currentColor"/></svg>';
+  const ICON_TRIANGLE = '<svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M10 3L18 16H2L10 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 8.5V12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10" cy="14.2" r="0.9" fill="currentColor"/></svg>';
+
   // ── Sparkline dùng chung ─────────────────────────────────
   function drawSparkline(svgId, values) {
     const svg = document.getElementById(svgId);
@@ -309,10 +340,27 @@
   }
 
   // ── Insight — tổng hợp 1 câu từ dữ liệu thật, không suy diễn ──
-  function buildInsight(data) {
-    const t = data.today || {};
-    if ((data.totalViPham || 0) > 0) {
-      return `<strong>${data.totalViPham} vi phạm SLA</strong> đang chờ xử lý — ưu tiên trước khi thêm việc mới.`;
+  // Ưu tiên: cảnh báo ngân sách Ads > vi phạm SLA > nhóm Ads lệch mạnh MA7 (≥20%) > delta CRM âm > ổn định
+  function buildInsight(crm, ads) {
+    const t = crm.today || {};
+    if (ads && !ads.error && ads.warnings && ads.warnings.length > 0) {
+      return `${escapeHtml(ads.warnings[0])}.`;
+    }
+    if ((crm.totalViPham || 0) > 0) {
+      return `<strong>${crm.totalViPham} vi phạm SLA</strong> đang chờ xử lý — ưu tiên trước khi thêm việc mới.`;
+    }
+    if (ads && !ads.error && ads.groups) {
+      let worst = null;
+      Object.keys(ads.groups).forEach((name) => {
+        const g = ads.groups[name];
+        if (g.eligible && g.deltaPct !== null && Math.abs(g.deltaPct) >= 20) {
+          if (!worst || Math.abs(g.deltaPct) > Math.abs(worst.deltaPct)) worst = { name, deltaPct: g.deltaPct };
+        }
+      });
+      if (worst) {
+        const dir = worst.deltaPct > 0 ? 'tăng' : 'giảm';
+        return `CPC nhóm <strong>${escapeHtml(worst.name)}</strong> ${dir} ${Math.abs(Math.round(worst.deltaPct))}% so MA7 — đáng kiểm tra.`;
+      }
     }
     if ((t.delta || 0) < 0) {
       return `Lượt hôm nay giảm <strong>${Math.abs(t.delta)}</strong> so hôm qua — đáng theo dõi.`;
@@ -320,8 +368,93 @@
     return `Hôm nay ổn định — <strong>${t.khachMoi ?? 0} khách mới</strong>, không có cảnh báo nào nổi bật.`;
   }
 
+  // ── Thẻ Ads & ROAS ────────────────────────────────────────
+  function renderAdsCard(ads) {
+    if (!ads || ads.error) {
+      return `
+        <div class="card">
+          <div class="card__head"><div class="card__title-group">${ICON_TREND}<p class="card__title">Ads &amp; ROAS</p></div></div>
+          <div class="placeholder">${ads && ads.error ? escapeHtml(ads.error) : 'Chờ dữ liệu Ads'}</div>
+        </div>`;
+    }
+
+    const t = ads.today;
+    const deltaChiPhi = ads.ma7.chiPhi ? ((t.chiPhi - ads.ma7.chiPhi) / ads.ma7.chiPhi) * 100 : null;
+    const heroClass = deltaChiPhi === null ? 'neutral' : (Math.abs(deltaChiPhi) < 10 ? 'neutral' : (deltaChiPhi > 0 ? 'bad' : 'good'));
+
+    const groupOrder = ['Chuyển đổi BES', 'Tương tác', 'Retargeting', 'Hub B2B'];
+    const benchHtml = groupOrder.map((name) => {
+      const g = ads.groups[name];
+      if (!g || g.todayCpc === null) {
+        return `<div class="bench-row"><span class="bench-name">${escapeHtml(name)}</span><span class="row-figs">không chạy</span></div>`;
+      }
+      if (!g.eligible) {
+        return `<div class="bench-row"><span class="bench-name">${escapeHtml(name)}</span><span class="bench-vals"><span class="cpc">${formatVndClient(g.todayCpc)}đ</span><span class="pct" style="color:var(--ink-faint)">${g.activeDays}/5 ngày</span></span></div>`;
+      }
+      const pct = g.deltaPct;
+      const cls = pct === null ? 'neutral' : (Math.abs(pct) < 10 ? 'neutral' : (pct > 0 ? 'bad' : 'good'));
+      const barWidth = Math.min(24, Math.abs(pct || 0));
+      const barSide = pct >= 0 ? `left:50%; width:${barWidth}px;` : `right:50%; width:${barWidth}px;`;
+      const barColor = cls === 'neutral' ? 'var(--ink-faint)' : (cls === 'bad' ? 'var(--danger)' : 'var(--ok)');
+      return `
+        <div class="bench-row">
+          <span class="bench-name">${escapeHtml(name)}</span>
+          <span class="bench-vals">
+            <span class="divbar"><span class="mid"></span><span class="fill" style="${barSide} background:${barColor};"></span></span>
+            <span class="cpc">${formatVndClient(g.todayCpc)}đ</span>
+            <span class="pct delta ${cls}">${pct >= 0 ? '▲' : '▼'}${Math.abs(Math.round(pct))}%</span>
+          </span>
+        </div>`;
+    }).join('');
+
+    const budget = ads.budget;
+    const budgetPct = budget.monthPaceTarget > 0 ? Math.min(100, (budget.monthSpend / budget.monthPaceTarget) * 100) : 0;
+
+    const unclassifiedHtml = (ads.unclassified && ads.unclassified.length > 0) ? `
+      <div class="card">
+        <div class="card__head"><div class="card__title-group">${ICON_TRIANGLE}<p class="card__title">Chưa phân loại</p></div></div>
+        <div class="placeholder">${ads.unclassified.map(escapeHtml).join(', ')} — cần bổ sung pattern nhóm trong CLAUDE.md</div>
+      </div>` : '';
+
+    return `
+      <div class="card">
+        <div class="card__head">
+          <div class="card__title-group">${ICON_TREND}<p class="card__title">Chi phí Ads hôm qua</p></div>
+          <span class="card__meta">${escapeHtml(ads.adsDate)}</span>
+        </div>
+        <p class="hero-figure">${formatVndClient(t.chiPhi)} đ</p>
+        <p class="delta ${heroClass}">${deltaChiPhi === null ? 'Chưa đủ dữ liệu MA7' : `${deltaChiPhi >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(deltaChiPhi))}% so MA7 (${formatVndClient(ads.ma7.chiPhi)}đ)`}</p>
+        <div class="stat-row">
+          <div class="stat-mini"><div class="v">${t.cpm !== null ? formatVndClient(t.cpm) : '–'}</div><div class="l">CPM (đ)</div></div>
+          <div class="stat-mini"><div class="v">${t.ctr !== null ? t.ctr.toFixed(2) + '%' : '–'}</div><div class="l">CTR</div></div>
+          <div class="stat-mini"><div class="v">${t.cpc !== null ? formatVndClient(t.cpc) : '–'}</div><div class="l">CPC (đ)</div></div>
+        </div>
+        <div class="sparkline-wrap"><svg id="spark-adschiphi"></svg></div>
+      </div>
+
+      <div class="card">
+        <div class="card__head">
+          <div class="card__title-group">${ICON_BARS}<p class="card__title">Benchmark theo nhóm</p></div>
+          <span class="card__meta">CPC vs MA7</span>
+        </div>
+        ${benchHtml}
+      </div>
+
+      <div class="card">
+        <div class="card__head">
+          <div class="card__title-group">${ICON_GAUGE}<p class="card__title">Nhịp ngân sách tháng</p></div>
+          <span class="card__meta">${budget.monthDaysRun} ngày chạy</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${budgetPct}%"></div></div>
+        <div class="progress-labels"><span>${formatVndClient(budget.monthSpend)}đ đã chi</span><span>${formatVndClient(budget.monthPaceTarget)}đ mục tiêu</span></div>
+      </div>
+
+      ${unclassifiedHtml}
+    `;
+  }
+
   // ── Tab A — Genkii ───────────────────────────────────────
-  function renderTabA(data) {
+  function renderTabA(data, ads) {
     const t = data.today || {};
     const deltaClass = (t.delta || 0) >= 0 ? 'good' : 'bad';
     const deltaSign = (t.delta || 0) >= 0 ? '+' : '';
@@ -346,7 +479,7 @@
     return `
       <div class="insight">
         <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2L11.6 8.4L18 10L11.6 11.6L10 18L8.4 11.6L2 10L8.4 8.4L10 2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-        <div><p class="eb">Đáng chú ý nhất hôm nay</p><p>${buildInsight(data)}</p></div>
+        <div><p class="eb">Đáng chú ý nhất hôm nay</p><p>${buildInsight(data, ads)}</p></div>
       </div>
 
       <div class="card">
@@ -410,19 +543,11 @@
         <ul class="row-list">${salesHtml || '<li>Chưa có dữ liệu</li>'}</ul>
       </div>
 
-      <div class="card">
-        <div class="card__head">
-          <div class="card__title-group">
-            <svg class="card__icon" viewBox="0 0 20 20" fill="none"><path d="M3 13L8 8L11.5 11L17 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="5" r="1.3" fill="currentColor"/></svg>
-            <p class="card__title">Ads &amp; ROAS</p>
-          </div>
-        </div>
-        <div class="placeholder">Chờ dữ liệu — chưa nối Sheet Ads (Chi phí/CTR/CPC, Cost per Lead, ROAS)</div>
-      </div>
+      ${renderAdsCard(ads)}
     `;
   }
 
-  function updateStatusGrid(data) {
+  function updateStatusGrid(data, ads) {
     const slaTile = document.getElementById('tile-sla');
     const overdueTile = document.getElementById('tile-overdue');
     const vip = data.totalViPham || 0;
@@ -433,6 +558,36 @@
     overdueTile.classList.toggle('st-danger', overdue > 0);
     overdueTile.classList.toggle('st-pending', overdue === 0);
     overdueTile.querySelector('.v').textContent = overdue > 0 ? `${overdue} quá hạn` : 'Không có';
+
+    const budgetTile = document.getElementById('tile-budget');
+    const benchTile = document.getElementById('tile-benchmark');
+    if (!ads || ads.error) {
+      budgetTile.querySelector('.v').textContent = 'Lỗi tải';
+      benchTile.querySelector('.v').textContent = 'Lỗi tải';
+      return;
+    }
+
+    const overBudget = (ads.warnings || []).some((w) => w.indexOf('vượt ngưỡng') !== -1);
+    budgetTile.classList.toggle('st-danger', overBudget);
+    budgetTile.classList.toggle('st-pending', !overBudget);
+    budgetTile.querySelector('.v').textContent = formatVndClient(ads.today.chiPhi) + 'đ';
+
+    let worst = null;
+    Object.keys(ads.groups).forEach((name) => {
+      const g = ads.groups[name];
+      if (g.eligible && g.deltaPct !== null) {
+        if (!worst || Math.abs(g.deltaPct) > Math.abs(worst.deltaPct)) worst = { name, deltaPct: g.deltaPct };
+      }
+    });
+    if (worst && Math.abs(worst.deltaPct) >= 20) {
+      benchTile.classList.add('st-danger');
+      benchTile.classList.remove('st-pending');
+      benchTile.querySelector('.v').textContent = `${worst.name} ${worst.deltaPct >= 0 ? '+' : ''}${Math.round(worst.deltaPct)}%`;
+    } else {
+      benchTile.classList.remove('st-danger');
+      benchTile.classList.add('st-pending');
+      benchTile.querySelector('.v').textContent = 'Ổn định';
+    }
   }
 
   async function loadTabA() {
@@ -445,16 +600,24 @@
     el.className = 'loading';
     el.textContent = 'Đang tải...';
     try {
-      const data = await jsonp('getDashboardData', {});
+      const [crmResult, adsResult] = await Promise.allSettled([
+        jsonp('getDashboardData', {}),
+        jsonp('getAdsToday', {})
+      ]);
+      if (crmResult.status !== 'fulfilled') throw crmResult.reason;
+      const data = crmResult.value;
       if (data.error) {
         el.className = 'error';
         el.textContent = 'Lỗi: ' + data.error;
         return;
       }
+      const ads = adsResult.status === 'fulfilled' ? adsResult.value : { error: 'Không tải được dữ liệu Ads' };
+
       el.className = '';
-      el.innerHTML = renderTabA(data);
-      updateStatusGrid(data);
+      el.innerHTML = renderTabA(data, ads);
+      updateStatusGrid(data, ads);
       drawSparkline('spark-khachmoi', (data.daily || []).map((d) => d.khachMoi));
+      if (!ads.error) drawSparkline('spark-adschiphi', (ads.daily || []).map((d) => d.chiPhi));
     } catch (err) {
       el.className = 'error';
       el.textContent = 'Không tải được dữ liệu: ' + err.message;
